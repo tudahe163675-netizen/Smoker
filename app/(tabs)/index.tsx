@@ -1,9 +1,12 @@
-// app/home.tsx
+import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -44,7 +47,7 @@ const posts = [
 ];
 
 // Ô đăng bài mới (header)
-const PostInputBox = ({ openSheet }: { openSheet: () => void }) => (
+const PostInputBox = ({ openSheet, pickImage }: { openSheet: () => void; pickImage: () => void }) => (
   <View style={styles.postBox}>
     <Image
       source={{ uri: 'https://i.pravatar.cc/100?img=10' }}
@@ -53,8 +56,8 @@ const PostInputBox = ({ openSheet }: { openSheet: () => void }) => (
     <TouchableOpacity style={styles.postInput} onPress={openSheet}>
       <Text style={{ color: '#6b7280' }}>Đăng bài...</Text>
     </TouchableOpacity>
-    <TouchableOpacity>
-      <Text style={styles.icon}>🖼️</Text>
+    <TouchableOpacity onPress={pickImage} style={styles.iconButton}>
+      <Ionicons name="image-outline" size={24} color="#6b7280" />
     </TouchableOpacity>
   </View>
 );
@@ -63,22 +66,80 @@ export default function HomeScreen() {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['50%', '90%'], []);
   const [postText, setPostText] = useState('');
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+
+  // Request permissions
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Quyền truy cập bị từ chối',
+        'Cần quyền truy cập thư viện ảnh để chọn ảnh.'
+      );
+      return false;
+    }
+    return true;
+  };
+
+  // Pick images from gallery
+  const pickImage = useCallback(async () => {
+    console.log('1231231');
+    
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        aspect: [4, 3],
+        selectionLimit: 5, // Giới hạn 5 ảnh
+      });
+
+      if (!result.canceled) {
+        const imageUris = result.assets.map(asset => asset.uri);
+        setSelectedImages(prev => [...prev, ...imageUris]);
+        
+        // Mở BottomSheet nếu chưa mở
+        bottomSheetRef.current?.snapToIndex(1);
+      }
+    } catch (error) {
+      console.error('Error picking images:', error);
+      Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+    }
+  }, []);
+
+  // Remove selected image
+  const removeImage = useCallback((index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
   // Handle sheet changes
   const handleSheetChanges = useCallback((index: number) => {
     console.log('Sheet changed to index:', index);
+    if (index === -1) {
+      // Reset khi đóng sheet
+      setSelectedImages([]);
+      setPostText('');
+    }
   }, []);
 
   const openSheet = useCallback(() => {
     console.log('Opening sheet...');
-    bottomSheetRef.current?.snapToIndex(1); // Mở tại 50%
+    bottomSheetRef.current?.snapToIndex(1);
   }, []);
 
   const submitPost = useCallback(() => {
     console.log('Post content:', postText);
+    console.log('Selected images:', selectedImages);
+    
+    // TODO: Xử lý đăng bài với text và ảnh
+    
     bottomSheetRef.current?.close();
     setPostText('');
-  }, [postText]);
+    setSelectedImages([]);
+  }, [postText, selectedImages]);
 
   const renderItem = ({ item }: any) => (
     <View style={styles.card}>
@@ -100,13 +161,16 @@ export default function HomeScreen() {
       {/* Actions */}
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionBtn}>
-          <Text>👍 Thích</Text>
+          <Ionicons name="heart-outline" size={18} color="#6b7280" />
+          <Text style={styles.actionText}>Thích</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn}>
-          <Text>💬 Bình luận</Text>
+          <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
+          <Text style={styles.actionText}>Bình luận</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn}>
-          <Text>↗️ Chia sẻ</Text>
+          <Ionicons name="arrow-redo-outline" size={18} color="#6b7280" />
+          <Text style={styles.actionText}>Chia sẻ</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -119,7 +183,7 @@ export default function HomeScreen() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         style={styles.container}
-        ListHeaderComponent={<PostInputBox openSheet={openSheet} />}
+        ListHeaderComponent={<PostInputBox openSheet={openSheet} pickImage={pickImage} />}
       />
 
       <BottomSheet
@@ -138,7 +202,7 @@ export default function HomeScreen() {
               onPress={() => bottomSheetRef.current?.close()}
               style={styles.closeButton}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Ionicons name="close" size={20} color="#6b7280" />
             </TouchableOpacity>
           </View>
 
@@ -151,17 +215,51 @@ export default function HomeScreen() {
             autoFocus={false}
           />
 
+          {/* Selected Images */}
+          {selectedImages.length > 0 && (
+            <ScrollView horizontal style={styles.imageContainer} showsHorizontalScrollIndicator={false}>
+              {selectedImages.map((uri, index) => (
+                <View key={index} style={styles.imageWrapper}>
+                  <Image source={{ uri }} style={styles.selectedImage} />
+                  <TouchableOpacity 
+                    style={styles.removeImageBtn}
+                    onPress={() => removeImage(index)}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
+              <Ionicons name="image-outline" size={24} color="#2563eb" />
+              <Text style={styles.mediaButtonText}>Ảnh</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.mediaButton}>
+              <Ionicons name="videocam-outline" size={24} color="#2563eb" />
+              <Text style={styles.mediaButtonText}>Video</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.mediaButton}>
+              <Ionicons name="location-outline" size={24} color="#2563eb" />
+              <Text style={styles.mediaButtonText}>Vị trí</Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
-            style={[styles.submitBtn, !postText.trim() && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, (!postText.trim() && selectedImages.length === 0) && styles.submitBtnDisabled]}
             onPress={submitPost}
-            disabled={!postText.trim()}
+            disabled={!postText.trim() && selectedImages.length === 0}
           >
             <Text style={styles.submitBtnText}>Đăng</Text>
           </TouchableOpacity>
         </BottomSheetView>
       </BottomSheet>
     </SafeAreaView>
-
   );
 }
 
@@ -185,7 +283,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: '#f9fafb',
   },
-  icon: { fontSize: 20 },
+  iconButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+  },
   card: {
     backgroundColor: '#fff',
     padding: 12,
@@ -210,7 +312,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#e5e7eb',
   },
-  actionBtn: { alignItems: 'center' },
+  actionBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    flex: 1,
+  },
+  actionText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#6b7280',
+  },
 
   // BottomSheet Styles
   sheetBackground: {
@@ -254,13 +366,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeButtonText: {
-    fontSize: 16,
-    color: '#6b7280',
-    fontWeight: 'bold',
-  },
   input: {
-    height: 120,
+    minHeight: 80,
+    maxHeight: 120,
     borderWidth: 1,
     borderColor: '#d1d5db',
     borderRadius: 8,
@@ -270,6 +378,49 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#f9fafb',
   },
+  
+  // Image Selection Styles
+  imageContainer: {
+    marginBottom: 16,
+  },
+  imageWrapper: {
+    position: 'relative',
+    marginRight: 8,
+    marginTop: 8
+  },
+  selectedImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+  },
+  
+  // Action Buttons
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  mediaButton: {
+    alignItems: 'center',
+    padding: 8,
+  },
+  mediaButtonText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#2563eb',
+    fontWeight: '500',
+  },
+  
   submitBtn: {
     backgroundColor: '#2563eb',
     padding: 12,
