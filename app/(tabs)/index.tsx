@@ -15,34 +15,57 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const posts = [
+interface Post {
+  id: string;
+  user: string;
+  avatar: string;
+  content: string;
+  image: string;
+  likes: number;
+  isLiked: boolean;
+  comments: number;
+}
+
+const initialPosts: Post[] = [
   {
     id: '1',
     user: 'Nguyen Van A',
     avatar: 'https://i.pravatar.cc/100?img=1',
-    content: 'Bài đăng số 1',
+    content: 'Bài đăng số 1 - Hôm nay thật đẹp trời!',
     image: 'https://picsum.photos/400/300?random=1',
+    likes: 24,
+    isLiked: false,
+    comments: 5,
   },
   {
     id: '2',
     user: 'Nguyen Van B',
     avatar: 'https://i.pravatar.cc/100?img=2',
-    content: 'Bài đăng số 2',
+    content: 'Bài đăng số 2 - Vừa ăn món ngon tại quán mới!',
     image: 'https://picsum.photos/400/300?random=2',
+    likes: 18,
+    isLiked: true,
+    comments: 3,
   },
   {
     id: '3',
     user: 'Nguyen Van C',
-    avatar: 'https://i.pravatar.cc/100?img=1',
-    content: 'Bài đăng số 1',
-    image: 'https://picsum.photos/400/300?random=1',
+    avatar: 'https://i.pravatar.cc/100?img=3',
+    content: 'Cuối tuần đi du lịch cùng gia đình',
+    image: 'https://picsum.photos/400/300?random=3',
+    likes: 35,
+    isLiked: false,
+    comments: 8,
   },
   {
     id: '4',
-    user: 'Nguyen Van E',
-    avatar: 'https://i.pravatar.cc/100?img=2',
-    content: 'Bài đăng số 2',
-    image: 'https://picsum.photos/400/300?random=2',
+    user: 'Nguyen Van D',
+    avatar: 'https://i.pravatar.cc/100?img=4',
+    content: 'Học được nhiều điều mới hôm nay',
+    image: 'https://picsum.photos/400/300?random=4',
+    likes: 12,
+    isLiked: false,
+    comments: 2,
   },
 ];
 
@@ -67,6 +90,7 @@ export default function HomeScreen() {
   const snapPoints = useMemo(() => ['50%', '90%'], []);
   const [postText, setPostText] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
 
   // Request permissions
   const requestPermissions = async () => {
@@ -83,7 +107,7 @@ export default function HomeScreen() {
 
   // Pick images from gallery
   const pickImage = useCallback(async () => {
-    console.log('1231231');
+    console.log('Opening image picker...');
     
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
@@ -134,19 +158,76 @@ export default function HomeScreen() {
     console.log('Post content:', postText);
     console.log('Selected images:', selectedImages);
     
-    // TODO: Xử lý đăng bài với text và ảnh
+    // Tạo post mới
+    const newPost: Post = {
+      id: Date.now().toString(),
+      user: 'Bạn',
+      avatar: 'https://i.pravatar.cc/100?img=10',
+      content: postText,
+      image: selectedImages[0] || 'https://picsum.photos/400/300?random=' + Math.floor(Math.random() * 100),
+      likes: 0,
+      isLiked: false,
+      comments: 0,
+    };
+    
+    // Thêm post mới vào đầu danh sách
+    setPosts(prev => [newPost, ...prev]);
     
     bottomSheetRef.current?.close();
     setPostText('');
     setSelectedImages([]);
+    
+    Alert.alert('Thành công', 'Bài viết đã được đăng!');
   }, [postText, selectedImages]);
 
-  const renderItem = ({ item }: any) => (
+  // Handle like post
+  const handleLike = useCallback((postId: string) => {
+    setPosts(prevPosts => 
+      prevPosts.map(post => 
+        post.id === postId 
+          ? { 
+              ...post, 
+              isLiked: !post.isLiked,
+              likes: post.isLiked ? post.likes - 1 : post.likes + 1
+            }
+          : post
+      )
+    );
+  }, []);
+
+  // Handle share post
+  const handleShare = useCallback(async (post: Post) => {
+    try {
+        Alert.alert(
+          'Chia sẻ',
+          `Bài viết của ${post.user}: "${post.content}"`,
+          [
+            { text: 'Sao chép link', onPress: () => console.log('Copy link') },
+            { text: 'Đóng', style: 'cancel' }
+          ]
+        );
+        return;
+    } catch (error) {
+      console.error('Error sharing:', error);
+      Alert.alert('Lỗi', 'Không thể chia sẻ bài viết');
+    }
+  }, []);
+
+  // Handle comment (placeholder)
+  const handleComment = useCallback((postId: string) => {
+    Alert.alert(
+      'Bình luận',
+      'Tính năng bình luận sẽ được phát triển trong phiên bản tiếp theo!',
+      [{ text: 'OK' }]
+    );
+  }, []);
+
+  const renderItem = ({ item }: { item: Post }) => (
     <View style={styles.card}>
       {/* Header */}
       <View style={styles.header}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        <View>
+        <View style={styles.headerInfo}>
           <Text style={styles.username}>{item.user}</Text>
           <Text style={styles.subText}>Vừa đăng · 1 giờ trước</Text>
         </View>
@@ -158,20 +239,49 @@ export default function HomeScreen() {
       {/* Image */}
       <Image source={{ uri: item.image }} style={styles.postImage} />
 
+      {/* Like and Comment count */}
+      <View style={styles.statsContainer}>
+        <Text style={styles.statsText}>
+          {item.likes > 0 && `${item.likes} lượt thích`}
+          {item.likes > 0 && item.comments > 0 && ' • '}
+          {item.comments > 0 && `${item.comments} bình luận`}
+        </Text>
+      </View>
+
       {/* Actions */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn}>
-          <Ionicons name="heart-outline" size={18} color="#6b7280" />
-          <Text style={styles.actionText}>Thích</Text>
+        <TouchableOpacity 
+          style={styles.actionBtn} 
+          onPress={() => handleLike(item.id)}
+        >
+          <Ionicons 
+            name={item.isLiked ? "heart" : "heart-outline"} 
+            size={20} 
+            color={item.isLiked ? "#ef4444" : "#6b7280"} 
+          />
+          <Text style={[
+            styles.actionText,
+            item.isLiked && { color: '#ef4444' }
+          ]}>
+            {item.isLiked ? 'Đã thích' : 'Thích'}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn}>
+        
+        <TouchableOpacity 
+          style={styles.actionBtn}
+          onPress={() => handleComment(item.id)}
+        >
           <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
           <Text style={styles.actionText}>Bình luận</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn}>
+        
+        {/* <TouchableOpacity 
+          style={styles.actionBtn}
+          onPress={() => handleShare(item)}
+        >
           <Ionicons name="arrow-redo-outline" size={18} color="#6b7280" />
           <Text style={styles.actionText}>Chia sẻ</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );
@@ -184,6 +294,7 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.id}
         style={styles.container}
         ListHeaderComponent={<PostInputBox openSheet={openSheet} pickImage={pickImage} />}
+        showsVerticalScrollIndicator={false}
       />
 
       <BottomSheet
@@ -272,6 +383,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
     borderColor: '#e5e7eb',
+    marginBottom: 8,
   },
   postInput: {
     flex: 1,
@@ -290,38 +402,70 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#fff',
-    padding: 12,
+    marginHorizontal: 8,
     marginBottom: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
-  username: { fontWeight: 'bold', fontSize: 14, color: '#111827' },
-  subText: { fontSize: 12, color: '#6b7280' },
-  content: { marginBottom: 8, fontSize: 14, color: '#374151' },
-  postImage: { width: '100%', height: 200, borderRadius: 6, marginBottom: 8 },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 12,
+    paddingBottom: 8,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+  username: { fontWeight: 'bold', fontSize: 15, color: '#111827' },
+  subText: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  content: { 
+    paddingHorizontal: 12,
+    marginBottom: 12, 
+    fontSize: 15, 
+    color: '#374151',
+    lineHeight: 20,
+  },
+  postImage: { 
+    width: '100%', 
+    height: 250, 
+    marginBottom: 8,
+  },
+  
+  // Stats (likes, comments count)
+  statsContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  statsText: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
     paddingVertical: 8,
-    borderTopWidth: 1,
-    borderColor: '#e5e7eb',
+    paddingHorizontal: 4,
   },
   actionBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center',
     flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   actionText: {
-    marginLeft: 4,
+    marginLeft: 6,
     fontSize: 14,
     color: '#6b7280',
+    fontWeight: '500',
   },
 
   // BottomSheet Styles
