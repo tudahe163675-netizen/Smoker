@@ -1,17 +1,16 @@
 // app/home.tsx
-import BottomSheet, { BottomSheetModalProvider, BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Image,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const posts = [
   {
@@ -74,7 +73,7 @@ export default function HomeScreen() {
     console.log('Opening sheet...');
     bottomSheetRef.current?.snapToIndex(1); // Mở tại 50%
   }, []);
-  
+
   const submitPost = useCallback(() => {
     console.log('Post content:', postText);
     bottomSheetRef.current?.close();
@@ -114,58 +113,55 @@ export default function HomeScreen() {
   );
 
   return (
-    <BottomSheetModalProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaView style={styles.container}>
-          <FlatList
-            data={posts}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            style={styles.container}
-            ListHeaderComponent={<PostInputBox openSheet={openSheet} />}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <FlatList
+        data={posts}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        style={styles.container}
+        ListHeaderComponent={<PostInputBox openSheet={openSheet} />}
+      />
+
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={-1}
+        snapPoints={snapPoints}
+        onChange={handleSheetChanges}
+        enablePanDownToClose={true}
+        backgroundStyle={styles.sheetBackground}
+        handleIndicatorStyle={styles.handleIndicator}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Tạo bài viết</Text>
+            <TouchableOpacity
+              onPress={() => bottomSheetRef.current?.close()}
+              style={styles.closeButton}
+            >
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TextInput
+            placeholder="Bạn đang nghĩ gì?"
+            multiline
+            style={styles.input}
+            value={postText}
+            onChangeText={setPostText}
+            autoFocus={false}
           />
 
-          <BottomSheet 
-            ref={bottomSheetRef} 
-            index={-1} 
-            snapPoints={snapPoints}
-            onChange={handleSheetChanges}
-            enablePanDownToClose={true}
-            backgroundStyle={styles.sheetBackground}
-            handleIndicatorStyle={styles.handleIndicator}
+          <TouchableOpacity
+            style={[styles.submitBtn, !postText.trim() && styles.submitBtnDisabled]}
+            onPress={submitPost}
+            disabled={!postText.trim()}
           >
-            <BottomSheetView style={styles.sheetContent}>
-              <View style={styles.sheetHeader}>
-                <Text style={styles.sheetTitle}>Tạo bài viết</Text>
-                <TouchableOpacity 
-                  onPress={() => bottomSheetRef.current?.close()}
-                  style={styles.closeButton}
-                >
-                  <Text style={styles.closeButtonText}>✕</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <TextInput
-                placeholder="Bạn đang nghĩ gì?"
-                multiline
-                style={styles.input}
-                value={postText}
-                onChangeText={setPostText}
-                autoFocus={false}
-              />
-              
-              <TouchableOpacity 
-                style={[styles.submitBtn, !postText.trim() && styles.submitBtnDisabled]} 
-                onPress={submitPost}
-                disabled={!postText.trim()}
-              >
-                <Text style={styles.submitBtnText}>Đăng</Text>
-              </TouchableOpacity>
-            </BottomSheetView>
-          </BottomSheet>
-        </SafeAreaView>
-      </GestureHandlerRootView>
-    </BottomSheetModalProvider>
+            <Text style={styles.submitBtnText}>Đăng</Text>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </BottomSheet>
+    </SafeAreaView>
+
   );
 }
 
@@ -215,7 +211,7 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   actionBtn: { alignItems: 'center' },
-  
+
   // BottomSheet Styles
   sheetBackground: {
     backgroundColor: '#fff',
@@ -231,10 +227,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#d1d5db',
     width: 40,
   },
-  sheetContent: { 
-    flex: 1, 
-    padding: 16, 
-    backgroundColor: 'transparent' 
+  sheetContent: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: 'transparent'
   },
   sheetHeader: {
     flexDirection: 'row',
