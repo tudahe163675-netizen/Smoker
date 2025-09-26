@@ -1,17 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  FlatList,
+  Animated,
   Image,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -91,6 +93,7 @@ export default function HomeScreen() {
   const [postText, setPostText] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   // Request permissions
   const requestPermissions = async () => {
@@ -222,10 +225,17 @@ export default function HomeScreen() {
     );
   }, []);
 
+  // Header animation
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, -100],
+    extrapolate: 'clamp',
+  });
+
   const renderItem = ({ item }: { item: Post }) => (
     <View style={styles.card}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.cardHeader}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
         <View style={styles.headerInfo}>
           <Text style={styles.username}>{item.user}</Text>
@@ -274,27 +284,42 @@ export default function HomeScreen() {
           <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
           <Text style={styles.actionText}>Bình luận</Text>
         </TouchableOpacity>
-        
-        {/* <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => handleShare(item)}
-        >
-          <Ionicons name="arrow-redo-outline" size={18} color="#6b7280" />
-          <Text style={styles.actionText}>Chia sẻ</Text>
-        </TouchableOpacity> */}
       </View>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <FlatList
+      <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
+
+      {/* Animated Header */}
+      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
+        <LinearGradient colors={['#1f2937', '#374151']} style={styles.headerGradient}>
+          <View style={styles.headerContent}>
+            <View>
+              <Text style={styles.headerTitle}>Smokder App</Text>
+              <Text style={styles.headerSubtitle}>Chia sẻ khoảnh khắc</Text>
+            </View>
+            {/* <TouchableOpacity style={styles.searchButton}>
+              <Ionicons name="search-outline" size={24} color="#fff" />
+            </TouchableOpacity> */}
+          </View>
+        </LinearGradient>
+      </Animated.View>
+
+      <Animated.FlatList
         data={posts}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        style={styles.container}
+        style={[styles.container, { paddingTop: 40 }]}
+        contentContainerStyle={{ paddingBottom: 40 }}
         ListHeaderComponent={<PostInputBox openSheet={openSheet} pickImage={pickImage} />}
         showsVerticalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       />
 
       <BottomSheet
@@ -375,7 +400,49 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#f9fafb' 
+  },
+
+  // Header Styles - giống cinema app
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  headerGradient: {
+    paddingTop: 40,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 15,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#d1d5db',
+    marginTop: 2,
+  },
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Post Input Box
   postBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -384,6 +451,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#e5e7eb',
     marginBottom: 8,
+    marginTop: 8,
   },
   postInput: {
     flex: 1,
@@ -400,6 +468,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#f3f4f6',
   },
+
+  // Card Styles
   card: {
     backgroundColor: '#fff',
     marginHorizontal: 8,
@@ -411,7 +481,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  header: { 
+  cardHeader: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     padding: 12,
