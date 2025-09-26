@@ -5,7 +5,9 @@ import React, { useCallback, useState } from 'react';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -189,22 +191,21 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Avatar */}
-        <View style={styles.avatarSection}>
-          <TouchableOpacity 
-            style={styles.avatarContainer}
-            onPress={() => pickImage('avatar')}
-          >
-            <Image source={{ uri: profile.avatar }} style={styles.avatar} />
-            <View style={styles.avatarOverlay}>
-              <Ionicons name="camera" size={16} color="#fff" />
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.nameSection}>
-            <Text style={styles.name}>{profile.name}</Text>
-            <Text style={styles.bio}>{profile.bio}</Text>
+        {/* Avatar - Overlapping cover image */}
+        <TouchableOpacity 
+          style={styles.avatarContainer}
+          onPress={() => pickImage('avatar')}
+        >
+          <Image source={{ uri: profile.avatar }} style={styles.avatar} />
+          <View style={styles.avatarOverlay}>
+            <Ionicons name="camera" size={16} color="#fff" />
           </View>
+        </TouchableOpacity>
+
+        {/* Name and Bio Section */}
+        <View style={styles.nameSection}>
+          <Text style={styles.name}>{profile.name}</Text>
+          <Text style={styles.bio}>{profile.bio}</Text>
         </View>
 
         {/* Stats */}
@@ -348,7 +349,10 @@ export default function ProfileScreen() {
         transparent={true}
         onRequestClose={() => setEditModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setEditModalVisible(false)}>
@@ -362,20 +366,22 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={[
-                styles.modalInput,
-                editingField === 'bio' && styles.modalTextArea
-              ]}
-              value={tempValue}
-              onChangeText={setTempValue}
-              placeholder={`Nhập ${getFieldLabel(editingField).toLowerCase()}`}
-              multiline={editingField === 'bio'}
-              numberOfLines={editingField === 'bio' ? 4 : 1}
-              autoFocus
-            />
+            <ScrollView style={styles.modalScrollView}>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  editingField === 'bio' && styles.modalTextArea
+                ]}
+                value={tempValue}
+                onChangeText={setTempValue}
+                placeholder={`Nhập ${getFieldLabel(editingField).toLowerCase()}`}
+                multiline={editingField === 'bio'}
+                numberOfLines={editingField === 'bio' ? 4 : 1}
+                autoFocus
+              />
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -409,7 +415,7 @@ const styles = StyleSheet.create({
   },
   coverContainer: {
     position: 'relative',
-    height: 200,
+    height: 300,
   },
   coverImage: {
     width: '100%',
@@ -441,8 +447,15 @@ const styles = StyleSheet.create({
     marginTop: -40,
   },
   avatarContainer: {
-    position: 'relative',
-    marginBottom: 12,
+    position: 'absolute',
+    top: 250, // Position to overlap the cover image
+    alignSelf: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   avatar: {
     width: 120,
@@ -466,6 +479,10 @@ const styles = StyleSheet.create({
   },
   nameSection: {
     alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingTop: 20, // Space for overlapped avatar
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   name: {
     fontSize: 24,
@@ -607,6 +624,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2563eb',
     fontWeight: '600',
+  },
+  modalScrollView: {
+    flex: 1,
+    maxHeight: 150, // Limit height to prevent keyboard issues
   },
   modalInput: {
     margin: 16,
