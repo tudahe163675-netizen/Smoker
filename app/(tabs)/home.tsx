@@ -1,7 +1,9 @@
+import AnimatedHeader from "@/components/ui/AnimatedHeader";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -28,14 +30,14 @@ const bannerData = [
     rating: 9.2,
   },
   {
-    id: "2", 
+    id: "2",
     title: "Spider-Man: No Way Home",
     image: "https://picsum.photos/400/250?random=2",
     rating: 8.8,
   },
   {
     id: "3",
-    title: "Top Gun: Maverick", 
+    title: "Top Gun: Maverick",
     image: "https://picsum.photos/400/250?random=3",
     rating: 8.9,
   },
@@ -55,7 +57,7 @@ const moviesData = [
   {
     id: "2",
     title: "DOCTOR STRANGE 2",
-    poster: "https://picsum.photos/300/450?random=11", 
+    poster: "https://picsum.photos/300/450?random=11",
     duration: "126 phút",
     rating: "T13",
     genre: "Viễn tưởng, Hành động",
@@ -66,7 +68,7 @@ const moviesData = [
     id: "3",
     title: "JURASSIC WORLD 3",
     poster: "https://picsum.photos/300/450?random=12",
-    duration: "147 phút", 
+    duration: "147 phút",
     rating: "T13",
     genre: "Phiêu lưu, Khoa học viễn tưởng",
     releaseDate: "10/06/2024",
@@ -79,7 +81,7 @@ const moviesData = [
     duration: "87 phút",
     rating: "P",
     genre: "Hoạt hình, Hài",
-    releaseDate: "01/07/2024", 
+    releaseDate: "01/07/2024",
     score: 8.1,
   },
   {
@@ -87,7 +89,7 @@ const moviesData = [
     title: "THOR: LOVE & THUNDER",
     poster: "https://picsum.photos/300/450?random=14",
     duration: "119 phút",
-    rating: "T13", 
+    rating: "T13",
     genre: "Hành động, Hài",
     releaseDate: "08/07/2024",
     score: 7.5,
@@ -112,9 +114,9 @@ export default function NewFeedScreen() {
   };
 
   const getRatingColor = (rating: string) => {
-    switch(rating) {
+    switch (rating) {
       case 'P': return '#10b981';
-      case 'T13': return '#f59e0b'; 
+      case 'T13': return '#f59e0b';
       case 'T16': return '#ef4444';
       case 'T18': return '#dc2626';
       default: return '#6b7280';
@@ -148,22 +150,22 @@ export default function NewFeedScreen() {
           <Text style={styles.scoreText}>{item.score}</Text>
         </View>
       </View>
-      
+
       <View style={styles.movieInfo}>
         <Text style={styles.movieTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.movieGenre} numberOfLines={1}>{item.genre}</Text>
-        
+
         <View style={styles.movieMeta}>
           <View style={styles.metaItem}>
             <Ionicons name="time-outline" size={12} color="#6b7280" />
             <Text style={styles.metaText}>{item.duration}</Text>
           </View>
-          
+
           <View style={[styles.ratingBadge, { backgroundColor: getRatingColor(item.rating) }]}>
             <Text style={styles.ratingText}>{item.rating}</Text>
           </View>
         </View>
-        
+
         <Text style={styles.releaseDate}>{item.releaseDate}</Text>
       </View>
     </TouchableOpacity>
@@ -179,20 +181,13 @@ export default function NewFeedScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
 
-      {/* Animated Header */}
-      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
-        <LinearGradient colors={['#1f2937', '#374151']} style={styles.headerGradient}>
-          <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.headerTitle}>Smoker App</Text>
-              <Text style={styles.headerSubtitle}>Khám phá ngay</Text>
-            </View>
-            <TouchableOpacity style={styles.searchButton}>
-              <Ionicons name="search-outline" size={24} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
-      </Animated.View>
+      <AnimatedHeader
+        title="Smoker App"
+        subtitle="Khám phá ngay"
+        iconName="search-outline"
+        onIconPress={() => Alert.alert('Search')}
+        headerTranslateY={headerTranslateY}
+      />
 
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
@@ -243,7 +238,7 @@ export default function NewFeedScreen() {
               Đang Chiếu
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[styles.tab, selectedTab === 'upcoming' && styles.activeTab]}
             onPress={() => setSelectedTab('upcoming')}
@@ -314,44 +309,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f8fafc",
   },
-
-  // Header Styles
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  headerGradient: {
-    paddingTop: 40,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#d1d5db',
-    marginTop: 2,
-  },
-  searchButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   // Banner Styles
   carouselContainer: {
     height: 280,

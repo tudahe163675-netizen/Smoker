@@ -1,7 +1,7 @@
+import AnimatedHeader from '@/components/ui/AnimatedHeader';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -111,7 +111,7 @@ export default function HomeScreen() {
   // Pick images from gallery
   const pickImage = useCallback(async () => {
     console.log('Opening image picker...');
-    
+
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
 
@@ -127,7 +127,7 @@ export default function HomeScreen() {
       if (!result.canceled) {
         const imageUris = result.assets.map(asset => asset.uri);
         setSelectedImages(prev => [...prev, ...imageUris]);
-        
+
         // Mở BottomSheet nếu chưa mở
         bottomSheetRef.current?.snapToIndex(1);
       }
@@ -160,7 +160,7 @@ export default function HomeScreen() {
   const submitPost = useCallback(() => {
     console.log('Post content:', postText);
     console.log('Selected images:', selectedImages);
-    
+
     // Tạo post mới
     const newPost: Post = {
       id: Date.now().toString(),
@@ -172,27 +172,27 @@ export default function HomeScreen() {
       isLiked: false,
       comments: 0,
     };
-    
+
     // Thêm post mới vào đầu danh sách
     setPosts(prev => [newPost, ...prev]);
-    
+
     bottomSheetRef.current?.close();
     setPostText('');
     setSelectedImages([]);
-    
+
     Alert.alert('Thành công', 'Bài viết đã được đăng!');
   }, [postText, selectedImages]);
 
   // Handle like post
   const handleLike = useCallback((postId: string) => {
-    setPosts(prevPosts => 
-      prevPosts.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              isLiked: !post.isLiked,
-              likes: post.isLiked ? post.likes - 1 : post.likes + 1
-            }
+    setPosts(prevPosts =>
+      prevPosts.map(post =>
+        post.id === postId
+          ? {
+            ...post,
+            isLiked: !post.isLiked,
+            likes: post.isLiked ? post.likes - 1 : post.likes + 1
+          }
           : post
       )
     );
@@ -201,15 +201,15 @@ export default function HomeScreen() {
   // Handle share post
   const handleShare = useCallback(async (post: Post) => {
     try {
-        Alert.alert(
-          'Chia sẻ',
-          `Bài viết của ${post.user}: "${post.content}"`,
-          [
-            { text: 'Sao chép link', onPress: () => console.log('Copy link') },
-            { text: 'Đóng', style: 'cancel' }
-          ]
-        );
-        return;
+      Alert.alert(
+        'Chia sẻ',
+        `Bài viết của ${post.user}: "${post.content}"`,
+        [
+          { text: 'Sao chép link', onPress: () => console.log('Copy link') },
+          { text: 'Đóng', style: 'cancel' }
+        ]
+      );
+      return;
     } catch (error) {
       console.error('Error sharing:', error);
       Alert.alert('Lỗi', 'Không thể chia sẻ bài viết');
@@ -260,14 +260,14 @@ export default function HomeScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
-        <TouchableOpacity 
-          style={styles.actionBtn} 
+        <TouchableOpacity
+          style={styles.actionBtn}
           onPress={() => handleLike(item.id)}
         >
-          <Ionicons 
-            name={item.isLiked ? "heart" : "heart-outline"} 
-            size={20} 
-            color={item.isLiked ? "#ef4444" : "#6b7280"} 
+          <Ionicons
+            name={item.isLiked ? "heart" : "heart-outline"}
+            size={20}
+            color={item.isLiked ? "#ef4444" : "#6b7280"}
           />
           <Text style={[
             styles.actionText,
@@ -276,8 +276,8 @@ export default function HomeScreen() {
             {item.isLiked ? 'Đã thích' : 'Thích'}
           </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.actionBtn}
           onPress={() => handleComment(item.id)}
         >
@@ -293,19 +293,11 @@ export default function HomeScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
 
       {/* Animated Header */}
-      <Animated.View style={[styles.header, { transform: [{ translateY: headerTranslateY }] }]}>
-        <LinearGradient colors={['#1f2937', '#374151']} style={styles.headerGradient}>
-          <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.headerTitle}>Smokder App</Text>
-              <Text style={styles.headerSubtitle}>Chia sẻ khoảnh khắc</Text>
-            </View>
-            {/* <TouchableOpacity style={styles.searchButton}>
-              <Ionicons name="search-outline" size={24} color="#fff" />
-            </TouchableOpacity> */}
-          </View>
-        </LinearGradient>
-      </Animated.View>
+      <AnimatedHeader
+        title="Smoker App"
+        subtitle="Chia sẻ khoảnh khắc"
+        headerTranslateY={headerTranslateY}
+      />
 
       <Animated.FlatList
         data={posts}
@@ -357,7 +349,7 @@ export default function HomeScreen() {
               {selectedImages.map((uri, index) => (
                 <View key={index} style={styles.imageWrapper}>
                   <Image source={{ uri }} style={styles.selectedImage} />
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.removeImageBtn}
                     onPress={() => removeImage(index)}
                   >
@@ -374,12 +366,12 @@ export default function HomeScreen() {
               <Ionicons name="image-outline" size={24} color="#2563eb" />
               <Text style={styles.mediaButtonText}>Ảnh</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.mediaButton}>
               <Ionicons name="videocam-outline" size={24} color="#2563eb" />
               <Text style={styles.mediaButtonText}>Video</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.mediaButton}>
               <Ionicons name="location-outline" size={24} color="#2563eb" />
               <Text style={styles.mediaButtonText}>Vị trí</Text>
@@ -400,48 +392,10 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#f9fafb' 
+  container: {
+    flex: 1,
+    backgroundColor: '#f9fafb'
   },
-
-  // Header Styles - giống cinema app
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  headerGradient: {
-    paddingTop: 40,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#d1d5db',
-    marginTop: 2,
-  },
-  searchButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   // Post Input Box
   postBox: {
     flexDirection: 'row',
@@ -481,9 +435,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  cardHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
     paddingBottom: 8,
   },
@@ -493,19 +447,19 @@ const styles = StyleSheet.create({
   avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
   username: { fontWeight: 'bold', fontSize: 15, color: '#111827' },
   subText: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  content: { 
+  content: {
     paddingHorizontal: 12,
-    marginBottom: 12, 
-    fontSize: 15, 
+    marginBottom: 12,
+    fontSize: 15,
     color: '#374151',
     lineHeight: 20,
   },
-  postImage: { 
-    width: '100%', 
-    height: 250, 
+  postImage: {
+    width: '100%',
+    height: 250,
     marginBottom: 8,
   },
-  
+
   // Stats (likes, comments count)
   statsContainer: {
     paddingHorizontal: 12,
@@ -517,15 +471,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
   },
-  
+
   actions: {
     flexDirection: 'row',
     paddingVertical: 8,
     paddingHorizontal: 4,
   },
-  actionBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
     paddingVertical: 8,
@@ -592,7 +546,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#f9fafb',
   },
-  
+
   // Image Selection Styles
   imageContainer: {
     marginBottom: 16,
@@ -614,7 +568,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
   },
-  
+
   // Action Buttons
   actionButtons: {
     flexDirection: 'row',
@@ -634,7 +588,7 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontWeight: '500',
   },
-  
+
   submitBtn: {
     backgroundColor: '#2563eb',
     padding: 12,
