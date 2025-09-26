@@ -1,98 +1,173 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+// app/home.tsx
+import React from 'react';
+import {
+  FlatList,
+  Image,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const posts = [
+  {
+    id: '1',
+    user: 'Nguyen Van A',
+    avatar: 'https://i.pravatar.cc/100?img=1',
+    content: 'Bài đăng số 1',
+    image: 'https://picsum.photos/400/300?random=1',
+  },
+  {
+    id: '2',
+    user: 'Nguyen Van B',
+    avatar: 'https://i.pravatar.cc/100?img=2',
+    content: 'Bài đăng số 2',
+    image: 'https://picsum.photos/400/300?random=2',
+  },
+];
+
+// Ô đăng bài mới (header)
+const PostInputBox = () => (
+  <View style={styles.postBox}>
+    <Image
+      source={{ uri: 'https://i.pravatar.cc/100?img=10' }}
+      style={styles.avatar}
+    />
+    <TouchableOpacity style={styles.postInput}>
+      <Text style={{ color: '#6b7280' }}>Đăng bài...</Text>
+    </TouchableOpacity>
+    <TouchableOpacity>
+      <Text style={styles.icon}>🖼️</Text>
+    </TouchableOpacity>
+  </View>
+);
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const renderItem = ({ item }: any) => (
+    <View style={styles.card}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <View>
+          <Text style={styles.username}>{item.user}</Text>
+          <Text style={styles.subText}>Vừa đăng · 1 giờ trước</Text>
+        </View>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* Content */}
+      <Text style={styles.content}>{item.content}</Text>
+
+      {/* Image */}
+      <Image source={{ uri: item.image }} style={styles.postImage} />
+
+      {/* Actions */}
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.actionBtn}>
+          <Text>👍 Thích</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn}>
+          <Text>💬 Bình luận</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn}>
+          <Text>↗️ Chia sẻ</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <FlatList
+        data={posts}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        style={styles.container}
+        ListHeaderComponent={<PostInputBox />}
+      />
+    </SafeAreaView>
+
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+  },
+  // Ô đăng bài
+  postBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#fff',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderColor: '#e5e7eb',
   },
-  stepContainer: {
-    gap: 8,
+  postInput: {
+    flex: 1,
+    marginHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f9fafb',
+  },
+  icon: {
+    fontSize: 20,
+  },
+  // Card bài đăng
+  card: {
+    backgroundColor: '#fff',
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  username: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#111827',
+  },
+  subText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  content: {
+    marginBottom: 8,
+    fontSize: 14,
+    color: '#374151',
+  },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  actionBtn: {
+    alignItems: 'center',
   },
 });
