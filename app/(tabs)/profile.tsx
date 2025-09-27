@@ -1,9 +1,12 @@
 import AnimatedHeader from '@/components/ui/AnimatedHeader';
+import { fieldLabels } from '@/constants/profileData';
+import { useProfile } from '@/hooks/useProfile';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Image,
@@ -21,56 +24,36 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-interface UserProfile {
-  id: string;
-  name: string;
-  phone: string;
-  bio: string;
-  avatar: string;
-  coverImage: string;
-  location: string;
-  website: string;
-  tiktok: string;
-  facebook: string;
-  instagram: string;
-  posts: number;
-  followers: number;
-  following: number;
-  balance: number; // Số tiền hiện có
-}
-
-const initialProfile: UserProfile = {
-  id: '1',
-  name: 'Nguyễn Thành Nam',
-  phone: '0123456789',
-  bio: 'Yêu thích công nghệ và du lịch. Đam mê khám phá những điều mới mẻ.',
-  avatar: 'https://i.pravatar.cc/150?img=10',
-  coverImage: 'https://picsum.photos/400/200?random=1',
-  location: 'Hà Nội, Việt Nam',
-  website: 'https://mywebsite.com',
-  tiktok: '@username',
-  facebook: 'facebook.com/username',
-  instagram: '@username',
-  posts: 42,
-  followers: 1205,
-  following: 356,
-  balance: 1250000, // 1,250,000 VND
-};
-
 export default function ProfileScreen() {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile>(initialProfile);
+  const userId = '1'; // TODO: Get from auth context
+  
+  const {
+    profile,
+    loading,
+    error,
+    fetchProfile,
+    updateProfileField,
+    updateProfileImage,
+    refreshBalance,
+  } = useProfile(userId);
+
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingField, setEditingField] = useState<string>('');
   const [tempValue, setTempValue] = useState('');
+  const [imageLoading, setImageLoading] = useState<'avatar' | 'cover' | null>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 2000);
-  };
+    await Promise.all([
+      fetchProfile(),
+      refreshBalance(),
+    ]);
+    setRefreshing(false);
+  }, [fetchProfile, refreshBalance]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -91,19 +74,13 @@ export default function ProfileScreen() {
   };
 
   const handleTopUp = () => {
-    Alert.alert(
-      'Nạp tiền',
-      'Chọn phương thức nạp tiền',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Chuyển khoản', onPress: () => console.log('Bank transfer') },
-        { text: 'Ví điện tử', onPress: () => console.log('E-wallet') },
-      ]
-    );
+    router.push('/topup');
   };
 
   const pickImage = useCallback(async (type: 'avatar' | 'cover') => {
     try {
+      setImageLoading(type);
+      
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -112,16 +89,19 @@ export default function ProfileScreen() {
       });
 
       if (!result.canceled) {
-        setProfile(prev => ({
-          ...prev,
-          [type === 'avatar' ? 'avatar' : 'coverImage']: result.assets[0].uri,
-        }));
+        const success = await updateProfileImage(type, result.assets[0].uri);
+        
+        if (success) {
+          Alert.alert('Thành công', 'Đã cập nhật ảnh');
+        }
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Lỗi', 'Không thể chọn ảnh');
+    } finally {
+      setImageLoading(null);
     }
-  }, []);
+  }, [updateProfileImage]);
 
   const openEditModal = (field: string, currentValue: string) => {
     setEditingField(field);
@@ -129,27 +109,13 @@ export default function ProfileScreen() {
     setEditModalVisible(true);
   };
 
-  const saveEdit = () => {
-    setProfile(prev => ({
-      ...prev,
-      [editingField]: tempValue,
-    }));
+  const saveEdit = async () => {
+    const success = await updateProfileField(editingField, tempValue);
     setEditModalVisible(false);
-    Alert.alert('Thành công', 'Đã cập nhật thông tin');
-  };
-
-  const getFieldLabel = (field: string) => {
-    const labels: { [key: string]: string } = {
-      name: 'Tên',
-      bio: 'Tiểu sử',
-      location: 'Địa điểm',
-      website: 'Website',
-      phone: 'Số điện thoại',
-      tiktok: 'TikTok',
-      facebook: 'Facebook',
-      instagram: 'Instagram',
-    };
-    return labels[field] || field;
+    
+    if (success) {
+      Alert.alert('Thành công', 'Đã cập nhật thông tin');
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -194,6 +160,17 @@ export default function ProfileScreen() {
     extrapolate: 'clamp',
   });
 
+  if (loading && !profile.name) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Đang tải hồ sơ...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
@@ -208,7 +185,14 @@ export default function ProfileScreen() {
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            colors={['#2563eb']}
+            tintColor="#2563eb"
+          />
+        }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: true }
@@ -219,11 +203,18 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.coverContainer}
           onPress={() => pickImage('cover')}
+          disabled={imageLoading === 'cover'}
         >
           <Image source={{ uri: profile.coverImage }} style={styles.coverImage} />
           <View style={styles.coverOverlay}>
-            <Ionicons name="camera" size={24} color="#fff" />
-            <Text style={styles.coverText}>Đổi ảnh bìa</Text>
+            {imageLoading === 'cover' ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Ionicons name="camera" size={24} color="#fff" />
+                <Text style={styles.coverText}>Đổi ảnh bìa</Text>
+              </>
+            )}
           </View>
         </TouchableOpacity>
 
@@ -231,10 +222,15 @@ export default function ProfileScreen() {
         <TouchableOpacity
           style={styles.avatarContainer}
           onPress={() => pickImage('avatar')}
+          disabled={imageLoading === 'avatar'}
         >
           <Image source={{ uri: profile.avatar }} style={styles.avatar} />
           <View style={styles.avatarOverlay}>
-            <Ionicons name="camera" size={16} color="#fff" />
+            {imageLoading === 'avatar' ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Ionicons name="camera" size={16} color="#fff" />
+            )}
           </View>
         </TouchableOpacity>
 
@@ -342,6 +338,14 @@ export default function ProfileScreen() {
             onPress={() => openEditModal('instagram', profile.instagram)}
           />
         </View>
+
+        {/* Error Message */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="warning-outline" size={20} color="#ef4444" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
       </Animated.ScrollView>
 
       {/* Edit Modal */}
@@ -362,7 +366,7 @@ export default function ProfileScreen() {
                 <Text style={styles.modalCancel}>Hủy</Text>
               </TouchableOpacity>
               <Text style={styles.modalTitle}>
-                Chỉnh sửa {getFieldLabel(editingField)}
+                Chỉnh sửa {fieldLabels[editingField] || editingField}
               </Text>
               <TouchableOpacity onPress={saveEdit}>
                 <Text style={styles.modalSave}>Lưu</Text>
@@ -377,7 +381,7 @@ export default function ProfileScreen() {
                 ]}
                 value={tempValue}
                 onChangeText={setTempValue}
-                placeholder={`Nhập ${getFieldLabel(editingField).toLowerCase()}`}
+                placeholder={`Nhập ${(fieldLabels[editingField] || editingField).toLowerCase()}`}
                 multiline={editingField === 'bio'}
                 numberOfLines={editingField === 'bio' ? 4 : 1}
                 autoFocus
@@ -394,6 +398,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
   },
   coverContainer: {
     position: 'relative',
@@ -574,6 +588,23 @@ const styles = StyleSheet.create({
   profileItemValue: {
     fontSize: 16,
     color: '#111827',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ef4444',
+  },
+  errorText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#dc2626',
+    flex: 1,
   },
 
   // Modal Styles
