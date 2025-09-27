@@ -1,12 +1,19 @@
+// app/(tabs)/index.tsx
 import AnimatedHeader from '@/components/ui/AnimatedHeader';
+import { Post } from '@/constants/feedData';
+import { useFeed } from '@/hooks/useFeed';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
+  Dimensions,
+  FlatList,
   Image,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -17,61 +24,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-interface Post {
-  id: string;
-  user: string;
-  avatar: string;
-  content: string;
-  image: string;
-  likes: number;
-  isLiked: boolean;
-  comments: number;
-}
+const { width: screenWidth } = Dimensions.get('window');
 
-const initialPosts: Post[] = [
-  {
-    id: '1',
-    user: 'Nguyen Van A',
-    avatar: 'https://i.pravatar.cc/100?img=1',
-    content: 'Bài đăng số 1 - Hôm nay thật đẹp trời!',
-    image: 'https://picsum.photos/400/300?random=1',
-    likes: 24,
-    isLiked: false,
-    comments: 5,
-  },
-  {
-    id: '2',
-    user: 'Nguyen Van B',
-    avatar: 'https://i.pravatar.cc/100?img=2',
-    content: 'Bài đăng số 2 - Vừa ăn món ngon tại quán mới!',
-    image: 'https://picsum.photos/400/300?random=2',
-    likes: 18,
-    isLiked: true,
-    comments: 3,
-  },
-  {
-    id: '3',
-    user: 'Nguyen Van C',
-    avatar: 'https://i.pravatar.cc/100?img=3',
-    content: 'Cuối tuần đi du lịch cùng gia đình',
-    image: 'https://picsum.photos/400/300?random=3',
-    likes: 35,
-    isLiked: false,
-    comments: 8,
-  },
-  {
-    id: '4',
-    user: 'Nguyen Van D',
-    avatar: 'https://i.pravatar.cc/100?img=4',
-    content: 'Học được nhiều điều mới hôm nay',
-    image: 'https://picsum.photos/400/300?random=4',
-    likes: 12,
-    isLiked: false,
-    comments: 2,
-  },
-];
-
-// Ô đăng bài mới (header)
 const PostInputBox = ({ openSheet, pickImage }: { openSheet: () => void; pickImage: () => void }) => (
   <View style={styles.postBox}>
     <Image
@@ -88,17 +42,27 @@ const PostInputBox = ({ openSheet, pickImage }: { openSheet: () => void; pickIma
 );
 
 export default function HomeScreen() {
+  const router = useRouter();
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['50%', '90%'], []);
   const [postText, setPostText] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [currentImageIndexes, setCurrentImageIndexes] = useState<{[key: string]: number}>({});
 
-  // Pick images from gallery
+  // Use the custom hook
+  const {
+    posts,
+    loading,
+    refreshing,
+    error,
+    createPost,
+    likePost,
+    refresh,
+  } = useFeed();
+
   const pickImage = useCallback(async () => {
     try {
-      // ImagePicker will handle permissions automatically
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,
@@ -118,128 +82,168 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // Remove selected image
   const removeImage = useCallback((index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Handle sheet changes
   const handleSheetChanges = useCallback((index: number) => {
-    console.log('Sheet changed to index:', index);
     if (index === -1) {
-      // Reset khi đóng sheet
       setSelectedImages([]);
       setPostText('');
     }
   }, []);
 
   const openSheet = useCallback(() => {
-    console.log('Opening sheet...');
     bottomSheetRef.current?.snapToIndex(1);
   }, []);
 
-  const submitPost = useCallback(() => {
-    console.log('Post content:', postText);
-    console.log('Selected images:', selectedImages);
-
-    // Tạo post mới
-    const newPost: Post = {
-      id: Date.now().toString(),
-      user: 'Bạn',
-      avatar: 'https://i.pravatar.cc/100?img=10',
+  const submitPost = useCallback(async () => {
+    const success = await createPost({
       content: postText,
-      image: selectedImages[0] || 'https://picsum.photos/400/300?random=' + Math.floor(Math.random() * 100),
-      likes: 0,
-      isLiked: false,
-      comments: 0,
-    };
-
-    // Thêm post mới vào đầu danh sách
-    setPosts(prev => [newPost, ...prev]);
+      images: selectedImages,
+    });
 
     bottomSheetRef.current?.close();
     setPostText('');
     setSelectedImages([]);
 
-    Alert.alert('Thành công', 'Bài viết đã được đăng!');
-  }, [postText, selectedImages]);
-
-  // Handle like post
-  const handleLike = useCallback((postId: string) => {
-    setPosts(prevPosts =>
-      prevPosts.map(post =>
-        post.id === postId
-          ? {
-            ...post,
-            isLiked: !post.isLiked,
-            likes: post.isLiked ? post.likes - 1 : post.likes + 1
-          }
-          : post
-      )
-    );
-  }, []);
-
-  // Handle share post
-  const handleShare = useCallback(async (post: Post) => {
-    try {
-      Alert.alert(
-        'Chia sẻ',
-        `Bài viết của ${post.user}: "${post.content}"`,
-        [
-          { text: 'Sao chép link', onPress: () => console.log('Copy link') },
-          { text: 'Đóng', style: 'cancel' }
-        ]
-      );
-      return;
-    } catch (error) {
-      console.error('Error sharing:', error);
-      Alert.alert('Lỗi', 'Không thể chia sẻ bài viết');
+    if (success) {
+      Alert.alert('Thành công', 'Bài viết đã được đăng!');
     }
-  }, []);
+  }, [postText, selectedImages, createPost]);
 
-  // Handle comment (placeholder)
-  const handleComment = useCallback((postId: string) => {
+  const handleLike = useCallback((postId: string) => {
+    likePost(postId);
+  }, [likePost]);
+
+  const handleShare = useCallback(async (post: Post) => {
     Alert.alert(
-      'Bình luận',
-      'Tính năng bình luận sẽ được phát triển trong phiên bản tiếp theo!',
-      [{ text: 'OK' }]
+      'Chia sẻ',
+      `Bài viết của ${post.user.name}: "${post.content}"`,
+      [
+        { text: 'Sao chép link', onPress: () => console.log('Copy link') },
+        { text: 'Đóng', style: 'cancel' }
+      ]
     );
   }, []);
 
-  // Header animation
+  const handleComment = useCallback((postId: string) => {
+    router.push({
+      pathname: '/post',
+      params: { id: postId }
+    });
+  }, [router]);
+
+  const handleUserPress = useCallback((userId: string) => {
+    router.push({
+      pathname: '/user',
+      params: { id: userId }
+    });
+  }, [router]);
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+
+    if (diffInHours < 1) return 'Vừa xong';
+    if (diffInHours < 24) return `${diffInHours} giờ trước`;
+    return `${Math.floor(diffInHours / 24)} ngày trước`;
+  };
+
   const headerTranslateY = scrollY.interpolate({
     inputRange: [0, 100],
     outputRange: [0, -100],
     extrapolate: 'clamp',
   });
 
+  // Handle scroll position for image counter
+  const handleImageScroll = (event: any, postId: string) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const currentIndex = Math.round(contentOffsetX / screenWidth);
+    setCurrentImageIndexes(prev => ({
+      ...prev,
+      [postId]: currentIndex
+    }));
+  };
+
+  // Component for rendering individual image in the post
+  const renderPostImage = ({ item: image, index }: { item: string; index: number }) => (
+    <TouchableOpacity onPress={() => handleComment(item.id)}>
+      <Image
+        source={{ uri: image }}
+        style={styles.postImage}
+        resizeMode="cover"
+      />
+    </TouchableOpacity>
+  );
+
   const renderItem = ({ item }: { item: Post }) => (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.cardHeader}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <TouchableOpacity onPress={() => handleUserPress(item.userId)}>
+          <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
+        </TouchableOpacity>
         <View style={styles.headerInfo}>
-          <Text style={styles.username}>{item.user}</Text>
-          <Text style={styles.subText}>Vừa đăng · 1 giờ trước</Text>
+          <TouchableOpacity onPress={() => handleUserPress(item.userId)}>
+            <Text style={styles.username}>{item.user.name}</Text>
+          </TouchableOpacity>
+          <Text style={styles.subText}>
+            {formatTime(item.createdAt)}
+            {item.location && ` • ${item.location}`}
+          </Text>
         </View>
       </View>
 
-      {/* Content */}
-      <Text style={styles.content}>{item.content}</Text>
+      <TouchableOpacity onPress={() => handleComment(item.id)}>
+        <Text style={styles.content}>{item.content}</Text>
+      </TouchableOpacity>
 
-      {/* Image */}
-      <Image source={{ uri: item.image }} style={styles.postImage} />
+      {/* Fixed Image Gallery */}
+      {item.images.length > 0 && (
+        <View style={styles.imageGalleryContainer}>
+          <FlatList
+            data={item.images}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(image, index) => `${item.id}-image-${index}`}
+            renderItem={({ item: image }) => (
+              <TouchableOpacity 
+                style={styles.imageContainer}
+                onPress={() => handleComment(item.id)}
+              >
+                <Image
+                  source={{ uri: image }}
+                  style={styles.postImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            )}
+            snapToInterval={screenWidth}
+            decelerationRate="fast"
+            onScroll={(event) => handleImageScroll(event, item.id)}
+            scrollEventThrottle={16}
+          />
+          {/* Image Counter */}
+          {item.images.length > 1 && (
+            <View style={styles.imageCounter}>
+              <Text style={styles.imageCounterText}>
+                {(currentImageIndexes[item.id] || 0) + 1}/{item.images.length}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
-      {/* Like and Comment count */}
       <View style={styles.statsContainer}>
         <Text style={styles.statsText}>
           {item.likes > 0 && `${item.likes} lượt thích`}
-          {item.likes > 0 && item.comments > 0 && ' • '}
-          {item.comments > 0 && `${item.comments} bình luận`}
+          {item.likes > 0 && item.commentsCount > 0 && ' • '}
+          {item.commentsCount > 0 && `${item.commentsCount} bình luận`}
         </Text>
       </View>
 
-      {/* Actions */}
       <View style={styles.actions}>
         <TouchableOpacity
           style={styles.actionBtn}
@@ -265,6 +269,14 @@ export default function HomeScreen() {
           <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
           <Text style={styles.actionText}>Bình luận</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => handleShare(item)}
+        >
+          <Ionicons name="share-outline" size={18} color="#6b7280" />
+          <Text style={styles.actionText}>Chia sẻ</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -273,7 +285,6 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
 
-      {/* Animated Header */}
       <AnimatedHeader
         title="Smoker App"
         subtitle="Chia sẻ khoảnh khắc"
@@ -288,6 +299,14 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
         ListHeaderComponent={<PostInputBox openSheet={openSheet} pickImage={pickImage} />}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            colors={['#2563eb']}
+            tintColor="#2563eb"
+          />
+        }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: true }
@@ -324,7 +343,6 @@ export default function HomeScreen() {
             autoFocus={false}
           />
 
-          {/* Selected Images */}
           {selectedImages.length > 0 && (
             <ScrollView horizontal style={styles.imageContainer} showsHorizontalScrollIndicator={false}>
               {selectedImages.map((uri, index) => (
@@ -341,21 +359,10 @@ export default function HomeScreen() {
             </ScrollView>
           )}
 
-          {/* Action Buttons */}
           <View style={styles.actionButtons}>
             <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
               <Ionicons name="image-outline" size={24} color="#2563eb" />
               <Text style={styles.mediaButtonText}>Ảnh</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.mediaButton}>
-              <Ionicons name="videocam-outline" size={24} color="#2563eb" />
-              <Text style={styles.mediaButtonText}>Video</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.mediaButton}>
-              <Ionicons name="location-outline" size={24} color="#2563eb" />
-              <Text style={styles.mediaButtonText}>Vị trí</Text>
             </TouchableOpacity>
           </View>
 
@@ -377,7 +384,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9fafb'
   },
-  // Post Input Box
   postBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,8 +409,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#f3f4f6',
   },
-
-  // Card Styles
   card: {
     backgroundColor: '#fff',
     marginHorizontal: 8,
@@ -425,9 +429,22 @@ const styles = StyleSheet.create({
   headerInfo: {
     flex: 1,
   },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
-  username: { fontWeight: 'bold', fontSize: 15, color: '#111827' },
-  subText: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12
+  },
+  username: {
+    fontWeight: 'bold',
+    fontSize: 15,
+    color: '#111827'
+  },
+  subText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2
+  },
   content: {
     paddingHorizontal: 12,
     marginBottom: 12,
@@ -435,13 +452,34 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 20,
   },
-  postImage: {
-    width: '100%',
-    height: 250,
+  
+  // Fixed Image Gallery Styles
+  imageGalleryContainer: {
+    position: 'relative',
     marginBottom: 8,
   },
+  imageContainer: {
+    width: screenWidth,
+  },
+  postImage: {
+    width: screenWidth,
+    height: 250,
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  imageCounterText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+  },
 
-  // Stats (likes, comments count)
   statsContainer: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -452,7 +490,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
   },
-
   actions: {
     flexDirection: 'row',
     paddingVertical: 8,
@@ -472,8 +509,6 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontWeight: '500',
   },
-
-  // BottomSheet Styles
   sheetBackground: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
@@ -527,11 +562,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#f9fafb',
   },
-
-  // Image Selection Styles
-  imageContainer: {
-    marginBottom: 16,
-  },
   imageWrapper: {
     position: 'relative',
     marginRight: 8,
@@ -549,8 +579,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
   },
-
-  // Action Buttons
   actionButtons: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -569,7 +597,6 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontWeight: '500',
   },
-
   submitBtn: {
     backgroundColor: '#2563eb',
     padding: 12,
