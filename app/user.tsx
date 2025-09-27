@@ -1,4 +1,3 @@
-// app/user/[id].tsx
 import { Post } from '@/constants/feedData';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { Ionicons } from '@expo/vector-icons';
@@ -213,8 +212,8 @@ export default function UserProfileScreen() {
 
       <AnimatedFlatList
         data={posts}
-        renderItem={renderPostItem}
-        keyExtractor={(item) => item.id}
+        renderItem={renderPostItem as any}
+        keyExtractor={(item: any) => item.id}
         numColumns={3}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.flatListContent}

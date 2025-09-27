@@ -1,4 +1,3 @@
-// app/(tabs)/booking.tsx
 import AnimatedHeader from '@/components/ui/AnimatedHeader';
 import { combosData } from '@/constants/barData';
 import { useBooking } from '@/hooks/useBooking';
