@@ -1,12 +1,13 @@
-import AnimatedHeader from "@/components/ui/AnimatedHeader";
+import ComboCard from '@/components/bar/ComboCard';
+import { bannerData, categories, ComboItem, combosData } from '@/constants/barData';
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   FlatList,
-  Image,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -15,117 +16,10 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get("window");
-const COMBO_WIDTH = width * 0.42;
-const COMBO_HEIGHT = COMBO_WIDTH * 0.8;
+const { width } = Dimensions.get("window");
 
-// Data banner quảng cáo các combo hot
-const bannerData = [
-  {
-    id: "1",
-    title: "Happy Hour 50% OFF",
-    subtitle: "Mọi đồ uống từ 17h-19h",
-    image: "https://picsum.photos/400/250?random=1",
-    discount: "50%",
-  },
-  {
-    id: "2",
-    title: "Combo Sinh Nhật VIP",
-    subtitle: "Miễn phí bánh kem + trang trí",
-    image: "https://picsum.photos/400/250?random=2",
-    discount: "FREE",
-  },
-  {
-    id: "3",
-    title: "Weekend Party",
-    subtitle: "DJ live + Cocktail đặc biệt",
-    image: "https://picsum.photos/400/250?random=3",
-    discount: "30%",
-  },
-];
-
-// Data các combo đồ uống và món ăn
-const combosData = [
-  {
-    id: "1",
-    title: "COMBO ROMANTIC",
-    image: "https://picsum.photos/300/240?random=10",
-    originalPrice: "850.000đ",
-    salePrice: "650.000đ",
-    category: "couple",
-    items: ["2 Cocktail đặc biệt", "Bánh ngọt", "Nến thơm"],
-    suitable: "2-3 người",
-    rating: 4.8,
-    reviews: 124,
-    isHot: true,
-  },
-  {
-    id: "2",
-    title: "COMBO FRIENDS",
-    image: "https://picsum.photos/300/240?random=11",
-    originalPrice: "1.200.000đ",
-    salePrice: "950.000đ",
-    category: "group",
-    items: ["6 Bia craft", "Mix snack", "Karaoke 2h"],
-    suitable: "4-6 người",
-    rating: 4.6,
-    reviews: 89,
-    isHot: false,
-  },
-  {
-    id: "3",
-    title: "COMBO PREMIUM",
-    image: "https://picsum.photos/300/240?random=12",
-    originalPrice: "2.500.000đ",
-    salePrice: "2.000.000đ",
-    category: "vip",
-    items: ["Whisky premium", "Hải sản", "Phòng VIP"],
-    suitable: "6-10 người",
-    rating: 4.9,
-    reviews: 67,
-    isHot: true,
-  },
-  {
-    id: "4",
-    title: "COMBO BIRTHDAY",
-    image: "https://picsum.photos/300/240?random=13",
-    originalPrice: "1.500.000đ",
-    salePrice: "1.200.000đ",
-    category: "party",
-    items: ["Bánh kem", "Trang trí", "6 đồ uống"],
-    suitable: "5-8 người",
-    rating: 4.7,
-    reviews: 156,
-    isHot: false,
-  },
-  {
-    id: "5",
-    title: "COMBO BUSINESS",
-    image: "https://picsum.photos/300/240?random=14",
-    originalPrice: "1.800.000đ",
-    salePrice: "1.500.000đ",
-    category: "business",
-    items: ["Wine premium", "Món Âu", "Không gian riêng"],
-    suitable: "4-6 người",
-    rating: 4.5,
-    reviews: 43,
-    isHot: false,
-  },
-];
-
-// Categories cho phân loại combo
-const categories = [
-  { id: 'all', name: 'Tất cả', icon: 'apps-outline' },
-  { id: 'couple', name: 'Hẹn hò', icon: 'heart-outline' },
-  { id: 'group', name: 'Nhóm bạn', icon: 'people-outline' },
-  { id: 'vip', name: 'VIP', icon: 'diamond-outline' },
-  { id: 'party', name: 'Tiệc tùng', icon: 'balloon-outline' },
-  { id: 'business', name: 'Công việc', icon: 'briefcase-outline' },
-];
-
-export default function NewFeedScreen() {
+export default function FeedScreen() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -149,23 +43,23 @@ export default function NewFeedScreen() {
     return combosData.filter(combo => combo.category === selectedCategory);
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      couple: '#ef4444',
-      group: '#3b82f6',
-      vip: '#f59e0b',
-      party: '#8b5cf6',
-      business: '#10b981',
-    };
-    return colors[category] || '#6b7280';
+  const handleComboPress = (combo: ComboItem) => {
+    // Navigate to booking screen with selected combo
+    router.push({
+      pathname: '/booking',
+      params: { selectedCombo: combo.id }
+    });
+  };
+
+  const handleBookingPress = () => {
+    router.push('/booking');
   };
 
   const BannerItem = ({ item, index }: any) => (
     <View style={styles.bannerSlide}>
-      <Image source={{ uri: item.image }} style={styles.bannerImage} />
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.8)']}
-        style={styles.bannerOverlay}
+        colors={['#1f2937', '#3b82f6']}
+        style={styles.bannerBackground}
       >
         <View style={styles.bannerContent}>
           <View style={styles.discountBadge}>
@@ -176,50 +70,6 @@ export default function NewFeedScreen() {
         </View>
       </LinearGradient>
     </View>
-  );
-
-  const ComboCard = ({ item }: any) => (
-    <TouchableOpacity style={styles.comboCard} activeOpacity={0.8}>
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: item.image }} style={styles.comboImage} />
-        {item.isHot && (
-          <View style={styles.hotBadge}>
-            <Ionicons name="flame" size={12} color="#fff" />
-            <Text style={styles.hotText}>HOT</Text>
-          </View>
-        )}
-        <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={12} color="#fbbf24" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
-        </View>
-      </View>
-
-      <View style={styles.comboInfo}>
-        <Text style={styles.comboTitle} numberOfLines={1}>{item.title}</Text>
-        
-        <View style={styles.itemsList}>
-          {item.items.map((itemName, index) => (
-            <Text key={index} style={styles.itemText} numberOfLines={1}>
-              • {itemName}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.suitableContainer}>
-          <Ionicons name="people-outline" size={14} color="#6b7280" />
-          <Text style={styles.suitableText}>{item.suitable}</Text>
-        </View>
-
-        <View style={styles.priceContainer}>
-          <Text style={styles.originalPrice}>{item.originalPrice}</Text>
-          <Text style={styles.salePrice}>{item.salePrice}</Text>
-        </View>
-
-        <View style={styles.reviewContainer}>
-          <Text style={styles.reviewText}>({item.reviews} đánh giá)</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
   );
 
   const CategoryTab = ({ item, isSelected, onPress }: any) => (
@@ -246,13 +96,13 @@ export default function NewFeedScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
 
-      <AnimatedHeader
+      {/* <AnimatedHeader
         title="Combo Hot"
         headerTranslateY={headerTranslateY}
-      />
+      /> */}
 
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
@@ -328,13 +178,15 @@ export default function NewFeedScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.combosList}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <ComboCard item={item} />}
+            renderItem={({ item }) => (
+              <ComboCard item={item} onPress={handleComboPress} />
+            )}
           />
         </View>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.actionCard}>
+          <TouchableOpacity style={styles.actionCard} onPress={handleBookingPress}>
             <LinearGradient colors={['#3b82f6', '#1d4ed8']} style={styles.actionGradient}>
               <Ionicons name="calendar-outline" size={28} color="#fff" />
               <Text style={styles.actionText}>Đặt bàn</Text>
@@ -358,13 +210,13 @@ export default function NewFeedScreen() {
       </Animated.ScrollView>
 
       {/* Floating Book Button */}
-      <TouchableOpacity style={styles.floatingButton} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.floatingButton} activeOpacity={0.8} onPress={handleBookingPress}>
         <LinearGradient colors={['#ef4444', '#dc2626']} style={styles.floatingGradient}>
           <Ionicons name="calendar" size={20} color="#fff" />
           <Text style={styles.floatingText}>Đặt bàn ngay</Text>
         </LinearGradient>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -376,28 +228,17 @@ const styles = StyleSheet.create({
   
   // Banner Styles
   carouselContainer: {
-    height: 280,
-    marginTop: 24,
+    height: 200,
   },
   bannerSlide: {
     width,
-    height: 280,
+    height: 200,
     position: 'relative',
   },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 0,
-  },
-  bannerOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '60%',
-    justifyContent: 'flex-end',
+  bannerBackground: {
+    flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 30,
   },
   bannerContent: {
     alignItems: 'flex-start',
@@ -507,112 +348,6 @@ const styles = StyleSheet.create({
   },
   combosList: {
     paddingHorizontal: 20,
-  },
-
-  // Combo Card
-  comboCard: {
-    width: COMBO_WIDTH,
-    marginRight: 15,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    overflow: 'hidden',
-  },
-  imageContainer: {
-    position: 'relative',
-  },
-  comboImage: {
-    width: '100%',
-    height: COMBO_HEIGHT,
-  },
-  hotBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ef4444',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  hotText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginLeft: 2,
-  },
-  ratingContainer: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  ratingText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 2,
-  },
-  comboInfo: {
-    padding: 12,
-  },
-  comboTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 6,
-  },
-  itemsList: {
-    marginBottom: 8,
-  },
-  itemText: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginBottom: 2,
-  },
-  suitableContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  suitableText: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textDecorationLine: 'line-through',
-    marginRight: 8,
-  },
-  salePrice: {
-    fontSize: 16,
-    color: '#ef4444',
-    fontWeight: 'bold',
-  },
-  reviewContainer: {
-    alignItems: 'flex-end',
-  },
-  reviewText: {
-    fontSize: 10,
-    color: '#9ca3af',
   },
 
   // Quick Actions
