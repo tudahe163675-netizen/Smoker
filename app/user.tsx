@@ -197,14 +197,13 @@ export default function UserProfileScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <Animated.View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{user.name}</Text>
         <TouchableOpacity style={styles.moreButton}>
           <Ionicons name="ellipsis-horizontal" size={24} color="#fff" />
         </TouchableOpacity>
@@ -233,7 +232,7 @@ export default function UserProfileScreen() {
           </View>
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
