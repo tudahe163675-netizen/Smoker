@@ -3,16 +3,16 @@ import AnimatedHeader from '@/components/ui/AnimatedHeader';
 import { Post } from '@/constants/feedData';
 import { useFeed } from '@/hooks/useFeed';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
   Dimensions,
   FlatList,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -26,13 +26,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const PostInputBox = ({ openSheet, pickImage }: { openSheet: () => void; pickImage: () => void }) => (
+const PostInputBox = ({ openModal, pickImage }: { openModal: () => void; pickImage: () => void }) => (
   <View style={styles.postBox}>
     <Image
       source={{ uri: 'https://i.pravatar.cc/100?img=10' }}
       style={styles.avatar}
     />
-    <TouchableOpacity style={styles.postInput} onPress={openSheet}>
+    <TouchableOpacity style={styles.postInput} onPress={openModal}>
       <Text style={{ color: '#6b7280' }}>Đăng bài...</Text>
     </TouchableOpacity>
     <TouchableOpacity onPress={pickImage} style={styles.iconButton}>
@@ -43,14 +43,12 @@ const PostInputBox = ({ openSheet, pickImage }: { openSheet: () => void; pickIma
 
 export default function HomeScreen() {
   const router = useRouter();
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%', '90%'], []);
+  const [modalVisible, setModalVisible] = useState(false);
   const [postText, setPostText] = useState('');
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{[key: string]: number}>({});
 
-  // Use the custom hook
   const {
     posts,
     loading,
@@ -74,7 +72,7 @@ export default function HomeScreen() {
       if (!result.canceled) {
         const imageUris = result.assets.map(asset => asset.uri);
         setSelectedImages(prev => [...prev, ...imageUris]);
-        bottomSheetRef.current?.snapToIndex(1);
+        setModalVisible(true);
       }
     } catch (error) {
       console.error('Error picking images:', error);
@@ -86,15 +84,14 @@ export default function HomeScreen() {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const handleSheetChanges = useCallback((index: number) => {
-    if (index === -1) {
-      setSelectedImages([]);
-      setPostText('');
-    }
+  const openModal = useCallback(() => {
+    setModalVisible(true);
   }, []);
 
-  const openSheet = useCallback(() => {
-    bottomSheetRef.current?.snapToIndex(1);
+  const closeModal = useCallback(() => {
+    setModalVisible(false);
+    setSelectedImages([]);
+    setPostText('');
   }, []);
 
   const submitPost = useCallback(async () => {
@@ -103,14 +100,12 @@ export default function HomeScreen() {
       images: selectedImages,
     });
 
-    bottomSheetRef.current?.close();
-    setPostText('');
-    setSelectedImages([]);
+    closeModal();
 
     if (success) {
       Alert.alert('Thành công', 'Bài viết đã được đăng!');
     }
-  }, [postText, selectedImages, createPost]);
+  }, [postText, selectedImages, createPost, closeModal]);
 
   const handleLike = useCallback((postId: string) => {
     likePost(postId);
@@ -157,7 +152,6 @@ export default function HomeScreen() {
     extrapolate: 'clamp',
   });
 
-  // Handle scroll position for image counter
   const handleImageScroll = (event: any, postId: string) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const currentIndex = Math.round(contentOffsetX / screenWidth);
@@ -166,17 +160,6 @@ export default function HomeScreen() {
       [postId]: currentIndex
     }));
   };
-
-  // Component for rendering individual image in the post
-  const renderPostImage = ({ item: image, index }: { item: string; index: number }) => (
-    <TouchableOpacity onPress={() => handleComment(item.id)}>
-      <Image
-        source={{ uri: image }}
-        style={styles.postImage}
-        resizeMode="cover"
-      />
-    </TouchableOpacity>
-  );
 
   const renderItem = ({ item }: { item: Post }) => (
     <View style={styles.card}>
@@ -199,7 +182,6 @@ export default function HomeScreen() {
         <Text style={styles.content}>{item.content}</Text>
       </TouchableOpacity>
 
-      {/* Fixed Image Gallery */}
       {item.images.length > 0 && (
         <View style={styles.imageGalleryContainer}>
           <FlatList
@@ -225,7 +207,6 @@ export default function HomeScreen() {
             onScroll={(event) => handleImageScroll(event, item.id)}
             scrollEventThrottle={16}
           />
-          {/* Image Counter */}
           {item.images.length > 1 && (
             <View style={styles.imageCounter}>
               <Text style={styles.imageCounterText}>
@@ -297,7 +278,7 @@ export default function HomeScreen() {
         keyExtractor={(item) => item.id}
         style={[styles.container, { paddingTop: 40 }]}
         contentContainerStyle={{ paddingBottom: 40 }}
-        ListHeaderComponent={<PostInputBox openSheet={openSheet} pickImage={pickImage} />}
+        ListHeaderComponent={<PostInputBox openModal={openModal} pickImage={pickImage} />}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -314,67 +295,80 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
       />
 
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={-1}
-        snapPoints={snapPoints}
-        onChange={handleSheetChanges}
-        enablePanDownToClose={true}
-        backgroundStyle={styles.sheetBackground}
-        handleIndicatorStyle={styles.handleIndicator}
+      {/* Modal thay thế BottomSheet */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={closeModal}
       >
-        <BottomSheetView style={styles.sheetContent}>
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Tạo bài viết</Text>
-            <TouchableOpacity
-              onPress={() => bottomSheetRef.current?.close()}
-              style={styles.closeButton}
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Tạo bài viết</Text>
+              <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            <ScrollView 
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
             >
-              <Ionicons name="close" size={20} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
+              <TextInput
+                placeholder="Bạn đang nghĩ gì?"
+                multiline
+                style={styles.input}
+                value={postText}
+                onChangeText={setPostText}
+                autoFocus={true}
+              />
 
-          <TextInput
-            placeholder="Bạn đang nghĩ gì?"
-            multiline
-            style={styles.input}
-            value={postText}
-            onChangeText={setPostText}
-            autoFocus={false}
-          />
+              {selectedImages.length > 0 && (
+                <ScrollView 
+                  horizontal 
+                  style={styles.imagesPreview} 
+                  showsHorizontalScrollIndicator={false}
+                >
+                  {selectedImages.map((uri, index) => (
+                    <View key={index} style={styles.imageWrapper}>
+                      <Image source={{ uri }} style={styles.selectedImage} />
+                      <TouchableOpacity
+                        style={styles.removeImageBtn}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#ef4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
 
-          {selectedImages.length > 0 && (
-            <ScrollView horizontal style={styles.imageContainer} showsHorizontalScrollIndicator={false}>
-              {selectedImages.map((uri, index) => (
-                <View key={index} style={styles.imageWrapper}>
-                  <Image source={{ uri }} style={styles.selectedImage} />
-                  <TouchableOpacity
-                    style={styles.removeImageBtn}
-                    onPress={() => removeImage(index)}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+              {/* Action Buttons */}
+              <View style={styles.actionButtons}>
+                <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
+                  <Ionicons name="image-outline" size={28} color="#2563eb" />
+                  <Text style={styles.mediaButtonText}>Thêm ảnh</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
-          )}
 
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
-              <Ionicons name="image-outline" size={24} color="#2563eb" />
-              <Text style={styles.mediaButtonText}>Ảnh</Text>
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[
+                styles.submitBtn, 
+                (!postText.trim() && selectedImages.length === 0) && styles.submitBtnDisabled
+              ]}
+              onPress={submitPost}
+              disabled={!postText.trim() && selectedImages.length === 0}
+            >
+              <Text style={styles.submitBtnText}>Đăng bài</Text>
             </TouchableOpacity>
           </View>
-
-          <TouchableOpacity
-            style={[styles.submitBtn, (!postText.trim() && selectedImages.length === 0) && styles.submitBtnDisabled]}
-            onPress={submitPost}
-            disabled={!postText.trim() && selectedImages.length === 0}
-          >
-            <Text style={styles.submitBtnText}>Đăng</Text>
-          </TouchableOpacity>
-        </BottomSheetView>
-      </BottomSheet>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -452,8 +446,6 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 20,
   },
-  
-  // Fixed Image Gallery Styles
   imageGalleryContainer: {
     position: 'relative',
     marginBottom: 8,
@@ -479,7 +471,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
-
   statsContainer: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -509,100 +500,104 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontWeight: '500',
   },
-  sheetBackground: {
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    height: '80%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 10,
   },
-  handleIndicator: {
-    backgroundColor: '#d1d5db',
-    width: 40,
-  },
-  sheetContent: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: 'transparent'
-  },
-  sheetHeader: {
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
-  sheetTitle: {
+  modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#111827',
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  modalBody: {
+    padding: 16,
+    maxHeight: 400,
+  },
   input: {
-    minHeight: 80,
-    maxHeight: 120,
+    minHeight: 100,
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     textAlignVertical: 'top',
     fontSize: 16,
     backgroundColor: '#f9fafb',
   },
+  imagesPreview: {
+    marginBottom: 16,
+  },
   imageWrapper: {
     position: 'relative',
-    marginRight: 8,
+    marginRight: 12,
     marginTop: 8
   },
   selectedImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
+    width: 100,
+    height: 100,
+    borderRadius: 12,
   },
   removeImageBtn: {
     position: 'absolute',
-    top: -6,
-    right: -6,
+    top: -8,
+    right: -8,
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
   },
   actionButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-    paddingVertical: 12,
+    justifyContent: 'flex-start',
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
+    marginTop: 8,
   },
   mediaButton: {
     alignItems: 'center',
-    padding: 8,
+    padding: 12,
   },
   mediaButtonText: {
-    marginTop: 4,
-    fontSize: 12,
+    marginTop: 6,
+    fontSize: 13,
     color: '#2563eb',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   submitBtn: {
     backgroundColor: '#2563eb',
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    margin: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 'auto',
   },
   submitBtnDisabled: {
     backgroundColor: '#9ca3af',
