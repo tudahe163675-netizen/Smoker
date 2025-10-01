@@ -10,6 +10,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -202,42 +203,43 @@ export default function ProfileScreen() {
 
   // Render Post Item
   const renderPostItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.postCard}
-      onPress={() => handlePostPress(item.id)}
-    >
-      <Text style={styles.postContent}>{item.content}</Text>
+    <View style={styles.postCard}>
+      <TouchableOpacity onPress={() => handlePostPress(item.id)}>
+        <Text style={styles.postContent}>{item.content}</Text>
+      </TouchableOpacity>
 
       {item.images.length > 0 && (
-        <ScrollView
+        <FlatList
+          data={item.images}
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.postImages}
-        >
-          {item.images.map((image: string, index: number) => (
+          keyExtractor={(image, index) => `${item.id}-img-${index}`}
+          renderItem={({ item: image }) => (
             <Image
-              key={index}
               source={{ uri: image }}
               style={styles.postImage}
             />
-          ))}
-        </ScrollView>
+          )}
+          style={styles.postImages}
+        />
       )}
 
-      <View style={styles.postFooter}>
-        <View style={styles.postStats}>
-          <View style={styles.postStat}>
-            <Ionicons name="heart" size={16} color="#ef4444" />
-            <Text style={styles.postStatText}>{item.likes}</Text>
+      <TouchableOpacity onPress={() => handlePostPress(item.id)}>
+        <View style={styles.postFooter}>
+          <View style={styles.postStats}>
+            <View style={styles.postStat}>
+              <Ionicons name="heart" size={16} color="#ef4444" />
+              <Text style={styles.postStatText}>{item.likes}</Text>
+            </View>
+            <View style={styles.postStat}>
+              <Ionicons name="chatbubble" size={16} color="#6b7280" />
+              <Text style={styles.postStatText}>{item.comments}</Text>
+            </View>
           </View>
-          <View style={styles.postStat}>
-            <Ionicons name="chatbubble" size={16} color="#6b7280" />
-            <Text style={styles.postStatText}>{item.comments}</Text>
-          </View>
+          <Text style={styles.postTime}>{formatTime(item.createdAt)}</Text>
         </View>
-        <Text style={styles.postTime}>{formatTime(item.createdAt)}</Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 
   // Render Photo Item
