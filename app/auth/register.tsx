@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import Checkbox from 'expo-checkbox';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -6,6 +7,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -22,82 +25,102 @@ export default function RegisterScreen() {
 
   const onRegister = () => {
     if (!agree) {
-      Alert.alert('Error', 'You must agree with the terms and conditions');
+      Alert.alert('Lỗi', 'Bạn phải đồng ý với điều khoản và điều kiện');
       return;
     }
     router.push('/auth/role');
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.logoContainer}>
-        <Image
-          source={require('@/assets/images/icon.png')}
-          style={styles.reactLogo}
-          contentFit="contain"
-        />
-        <Text style={styles.brandText}>SMOKER</Text>
-      </View>
+    <View style={styles.container}>
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="transparent" 
+        translucent 
+      />
+      
+      {/* Nút Back */}
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => router.back()}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="arrow-back" size={24} color="#111827" />
+      </TouchableOpacity>
 
-      <View>
-        <TextInput
-          placeholder="Username"
-          style={styles.input}
-          placeholderTextColor="#9ca3af"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
-
-        <TextInput
-          placeholder="Password"
-          style={styles.input}
-          placeholderTextColor="#9ca3af"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <TextInput
-          placeholder="Phone number"
-          style={styles.input}
-          placeholderTextColor="#9ca3af"
-          keyboardType="phone-pad"
-          value={confirm}
-          onChangeText={setConfirm}
-        />
-
-        {/* Checkbox terms */}
-        <View style={styles.checkboxContainer}>
-          <Checkbox
-            value={agree}
-            onValueChange={setAgree}
-            color={agree ? '#2563eb' : undefined}
-          />
-          <Text style={styles.checkboxText}>
-            I have read and agree with the terms and conditions
-          </Text>
-
-        </View>
-
-        <TouchableOpacity
-          style={[styles.button, !agree && { backgroundColor: '#9ca3af' }]}
-          onPress={onRegister}
-          disabled={!agree}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          <Text style={styles.buttonText}>Register</Text>
-        </TouchableOpacity>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={styles.reactLogo}
+              contentFit="contain"
+            />
+            <Text style={styles.brandText}>SMOKER</Text>
+          </View>
 
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.loginText}>
-            Already have an account? <Text style={styles.loginLink}>Login</Text>
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <View>
+            <TextInput
+              placeholder="Tên đăng nhập"
+              style={styles.input}
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+            />
+
+            <TextInput
+              placeholder="Mật khẩu"
+              style={styles.input}
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+
+            <TextInput
+              placeholder="Số điện thoại"
+              style={styles.input}
+              placeholderTextColor="#9ca3af"
+              keyboardType="phone-pad"
+              value={confirm}
+              onChangeText={setConfirm}
+            />
+
+            <View style={styles.checkboxContainer}>
+              <Checkbox
+                value={agree}
+                onValueChange={setAgree}
+                color={agree ? '#2563eb' : undefined}
+              />
+              <Text style={styles.checkboxText}>
+                Tôi đã đọc và đồng ý với các điều khoản và điều kiện
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, !agree && { backgroundColor: '#9ca3af' }]}
+              onPress={onRegister}
+              disabled={!agree}
+            >
+              <Text style={styles.buttonText}>Đăng ký</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.loginText}>
+                Bạn đã có tài khoản? <Text style={styles.loginLink}>Đăng nhập</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -105,8 +128,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 52,
+    left: 16,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  keyboardView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
   },
   input: {
     borderWidth: 1,
@@ -131,6 +178,7 @@ const styles = StyleSheet.create({
   loginText: {
     textAlign: 'center',
     color: '#374151',
+    marginBottom: 20,
   },
   loginLink: {
     color: '#2563eb',
@@ -161,5 +209,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: '#374151',
     fontSize: 14,
+    flex: 1,
   },
 });

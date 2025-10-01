@@ -1,12 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function SelectRoleScreen() {
@@ -16,39 +19,64 @@ export default function SelectRoleScreen() {
   const roles = [
     { key: 'customer', label: 'Khách hàng' },
     { key: 'dj', label: 'DJ' },
-    { key: 'dance', label: 'Dance' },
+    { key: 'dance', label: 'Dancer' },
     { key: 'owner', label: 'Chủ quán bar' },
   ];
 
   const onConfirm = (role: string) => {
     setSelectedRole(role);
-    Alert.alert('Thành công', `Bạn đã chọn: ${role}`);
-    router.replace('/(tabs)'); // vào app chính
+    Alert.alert('Thành công', `Bạn đã chọn vai trò: ${role}`, [
+      {
+        text: 'OK',
+        onPress: () => router.replace('/(tabs)'),
+      },
+    ]);
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Image
-          source={require('@/assets/images/icon.png')}
-          style={styles.logo}
-          contentFit="contain"
-        />
-        <Text style={styles.brandText}>SMOKER</Text>
-      </View>
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor="transparent" 
+        translucent 
+      />
+      
+      {/* Nút Back */}
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => router.back()}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="arrow-back" size={24} color="#111827" />
+      </TouchableOpacity>
 
-      <Text style={styles.question}>Bạn muốn đăng ký với tư cách thành viên gì?</Text>
+      <View style={styles.content}>
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <Text style={styles.brandText}>SMOKER</Text>
+        </View>
 
-      <View style={styles.rolesBox}>
-        {roles.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={styles.roleBtn}
-            onPress={() => onConfirm(item.label)}
-          >
-            <Text style={styles.roleText}>{item.label}</Text>
-          </TouchableOpacity>
-        ))}
+        <Text style={styles.question}>
+          Bạn muốn đăng ký với vai trò nào?
+        </Text>
+
+        <View style={styles.rolesBox}>
+          {roles.map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={styles.roleBtn}
+              onPress={() => onConfirm(item.label)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.roleText}>{item.label}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -57,47 +85,74 @@ export default function SelectRoleScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
+    backgroundColor: '#f8fafc',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 44,
   },
-  backBtn: {
-    marginBottom: 10,
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 52,
+    left: 16,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  backText: {
-    color: '#2563eb',
-    fontSize: 14,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 40,
+    justifyContent: 'center',
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 32,
   },
   logo: {
     width: 120,
     height: 120,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   brandText: {
     fontSize: 28,
     fontWeight: '800',
     color: '#111827',
     textTransform: 'uppercase',
+    letterSpacing: 2,
   },
   question: {
-    fontSize: 16,
+    fontSize: 18,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
     color: '#374151',
+    fontWeight: '600',
   },
   rolesBox: {
     gap: 12,
+    marginBottom: 24,
   },
   roleBtn: {
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   roleText: {
     fontSize: 16,

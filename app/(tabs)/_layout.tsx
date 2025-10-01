@@ -33,7 +33,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Trang chủ',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
           ),
@@ -42,7 +42,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="feed"
         options={{
-          title: 'New Feed',
+          title: 'Bảng tin',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="newspaper.fill" color={color} />
           ),
@@ -51,7 +51,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="table"
         options={{
-          title: 'Table Management',
+          title: 'Quản lý',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="table.fill" color={color} />
           ),
@@ -60,7 +60,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="notifications"
         options={{
-          title: 'Notification',
+          title: 'Thông báo',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="bell.fill" color={color} />
           ),
@@ -70,7 +70,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Hồ sơ',
           tabBarIcon: ({ color }: { color: string }) => (
             <IconSymbol size={28} name="person.crop.circle" color={color} />
           ),
