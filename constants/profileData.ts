@@ -101,3 +101,30 @@ export const fieldLabels: { [key: string]: string } = {
   facebook: 'Facebook',
   instagram: 'Instagram',
 };
+
+export const mockPosts = [
+  {
+    id: '1',
+    content: 'Hôm nay thật là một ngày tuyệt vời! 🌞',
+    images: ['https://picsum.photos/400/300?random=1'],
+    likes: 24,
+    comments: 5,
+    createdAt: '2024-01-15T10:30:00Z',
+  },
+  {
+    id: '2',
+    content: 'Cafe buổi sáng ☕',
+    images: ['https://picsum.photos/400/300?random=2', 'https://picsum.photos/400/300?random=3'],
+    likes: 18,
+    comments: 3,
+    createdAt: '2024-01-14T08:00:00Z',
+  },
+  {
+    id: '3',
+    content: 'Sunset view 🌅',
+    images: ['https://picsum.photos/400/300?random=4'],
+    likes: 45,
+    comments: 12,
+    createdAt: '2024-01-13T18:30:00Z',
+  },
+];
