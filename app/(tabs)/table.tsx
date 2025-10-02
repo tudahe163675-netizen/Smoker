@@ -73,7 +73,7 @@ export default function TableManagementScreen() {
     }[table.type];
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.tableItem}
         onPress={() => handleTablePress(table)}
         activeOpacity={0.7}
@@ -83,16 +83,7 @@ export default function TableManagementScreen() {
           <View style={styles.tableInfo}>
             <View style={styles.tableHeader}>
               <Text style={styles.tableNumber}>Bàn {table.number}</Text>
-              <View style={[
-                styles.statusBadge,
-                table.status === 'trống' && styles.statusEmpty,
-                table.status === 'đang sử dụng' && styles.statusOccupied,
-                table.status === 'đã đặt' && styles.statusBooked,
-              ]}>
-                <Text style={styles.statusText}>
-                  {table.status.toUpperCase()}
-                </Text>
-              </View>
+
             </View>
             <Text style={styles.tableType}>{typeConfig.label} • {table.capacity} người</Text>
             {table.customer && (
@@ -104,6 +95,16 @@ export default function TableManagementScreen() {
               </Text>
             )}
           </View>
+        </View>
+        <View style={[
+          styles.statusBadge,
+          table.status === 'trống' && styles.statusEmpty,
+          table.status === 'đang sử dụng' && styles.statusOccupied,
+          table.status === 'đã đặt' && styles.statusBooked,
+        ]}>
+          <Text style={styles.statusText}>
+            {table.status.toUpperCase()}
+          </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
@@ -121,21 +122,13 @@ export default function TableManagementScreen() {
         headerTranslateY={headerTranslateY}
       />
 
-      {/* Nút xem thu nhập */}
-      <TouchableOpacity 
-        style={styles.revenueButton}
-        onPress={() => router.push('/revenue')}
-      >
-        <Ionicons name="bar-chart" size={20} color="#fff" />
-        <Text style={styles.revenueButtonText}>Xem thu nhập</Text>
-      </TouchableOpacity>
-
+      {/* list bàn */}
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120, paddingTop: 100 }}
         refreshControl={
-          <RefreshControl 
-            refreshing={loading} 
+          <RefreshControl
+            refreshing={loading}
             onRefresh={refresh}
             colors={['#2563eb']}
             tintColor="#2563eb"
@@ -147,6 +140,47 @@ export default function TableManagementScreen() {
         )}
         scrollEventThrottle={16}
       >
+
+        {/* Summary Card với nút xem chi tiết */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryHeader}>
+            <View>
+              <Text style={styles.summaryTitle}>Tổng quan hôm nay</Text>
+              <Text style={styles.summarySubtitle}>
+                {tables.filter(t => t.status === 'đang sử dụng').length}/{tables.length} bàn đang sử dụng
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.summaryButton}
+              onPress={() => router.push('/revenue')}
+            >
+              <Ionicons name="bar-chart" size={20} color="#10b981" />
+              <Text style={styles.summaryButtonText}>Thu nhập</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Trống</Text>
+              <Text style={[styles.statValue, { color: '#10b981' }]}>
+                {tables.filter(t => t.status === 'trống').length}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Sử dụng</Text>
+              <Text style={[styles.statValue, { color: '#ef4444' }]}>
+                {tables.filter(t => t.status === 'đang sử dụng').length}
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Đã đặt</Text>
+              <Text style={[styles.statValue, { color: '#f59e0b' }]}>
+                {tables.filter(t => t.status === 'đã đặt').length}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {tables.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="restaurant-outline" size={48} color="#9ca3af" />
@@ -258,8 +292,8 @@ export default function TableManagementScreen() {
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Loại bàn:</Text>
                       <Text style={styles.detailValue}>
-                        {selectedTable.type === 'thường' ? 'Bàn Thường' : 
-                         selectedTable.type === 'vip' ? 'Bàn VIP' : 'Bàn Luxury'}
+                        {selectedTable.type === 'thường' ? 'Bàn Thường' :
+                          selectedTable.type === 'vip' ? 'Bàn VIP' : 'Bàn Luxury'}
                       </Text>
                     </View>
                     <View style={styles.detailRow}>
@@ -312,7 +346,7 @@ export default function TableManagementScreen() {
                           {formatTime(selectedTable.currentOrder.startTime)}
                         </Text>
                       </View>
-                      
+
                       <View style={styles.orderItems}>
                         {selectedTable.currentOrder.items.map((item, index) => (
                           <View key={index} style={styles.orderItem}>
@@ -355,29 +389,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
-  },
-  revenueButton: {
-    position: 'absolute',
-    top: 120,
-    right: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#10b981',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    zIndex: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  revenueButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
   },
   tableItem: {
     flexDirection: 'row',
@@ -424,6 +435,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    marginRight: 16
   },
   statusEmpty: {
     backgroundColor: '#d1fae5',
@@ -635,5 +647,66 @@ const styles = StyleSheet.create({
     color: '#10b981',
     marginTop: 12,
     fontWeight: '500',
+  },
+  summaryCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  summarySubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  summaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 4,
+  },
+  summaryButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#10b981',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
   },
 });
