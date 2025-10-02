@@ -2,6 +2,7 @@ export interface Notification {
   id: string;
   type: 'like' | 'comment' | 'follow' | 'post' | 'mention';
   user: {
+    id: string;
     name: string;
     avatar: string;
   };
@@ -16,6 +17,7 @@ export const notificationsData: Notification[] = [
     id: '1',
     type: 'like',
     user: {
+      id: '1',
       name: 'Nguyễn Văn A',
       avatar: 'https://i.pravatar.cc/100?img=1',
     },
@@ -28,6 +30,7 @@ export const notificationsData: Notification[] = [
     id: '2',
     type: 'comment',
     user: {
+      id: '2',
       name: 'Trần Thị B',
       avatar: 'https://i.pravatar.cc/100?img=2',
     },
@@ -40,17 +43,19 @@ export const notificationsData: Notification[] = [
     id: '3',
     type: 'follow',
     user: {
+      id: '3',
       name: 'Lê Minh C',
       avatar: 'https://i.pravatar.cc/100?img=3',
     },
     content: 'đã bắt đầu theo dõi bạn',
     time: '30 phút trước',
-    isRead: false,
+    isRead: true,
   },
   {
     id: '4',
     type: 'like',
     user: {
+      id: '1',
       name: 'Phạm Thị D',
       avatar: 'https://i.pravatar.cc/100?img=4',
     },
@@ -63,17 +68,19 @@ export const notificationsData: Notification[] = [
     id: '5',
     type: 'mention',
     user: {
+      id: '2',
       name: 'Hoàng Văn E',
       avatar: 'https://i.pravatar.cc/100?img=5',
     },
     content: 'đã nhắc đến bạn trong một bình luận',
     time: '2 giờ trước',
-    isRead: true,
+    isRead: false,
   },
   {
     id: '6',
     type: 'post',
     user: {
+      id: '3',
       name: 'Vũ Thị F',
       avatar: 'https://i.pravatar.cc/100?img=6',
     },
@@ -86,6 +93,7 @@ export const notificationsData: Notification[] = [
     id: '7',
     type: 'comment',
     user: {
+      id: '1',
       name: 'Đặng Minh G',
       avatar: 'https://i.pravatar.cc/100?img=7',
     },
@@ -98,11 +106,12 @@ export const notificationsData: Notification[] = [
     id: '8',
     type: 'like',
     user: {
+      id: '1',
       name: 'Bùi Thị H',
       avatar: 'https://i.pravatar.cc/100?img=8',
     },
     content: 'đã thích bình luận của bạn',
     time: '2 ngày trước',
-    isRead: true,
+    isRead: false,
   },
 ];

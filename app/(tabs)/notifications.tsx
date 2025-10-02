@@ -59,7 +59,7 @@ export default function NotificationScreen() {
 
    router.push({
       pathname: '/post',
-      params: { id: notification.id }
+      params: { id: notification.user.id }
     });
   }, [markAsRead]);
 
