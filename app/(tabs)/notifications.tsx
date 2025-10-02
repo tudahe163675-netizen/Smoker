@@ -1,6 +1,7 @@
 import AnimatedHeader from '@/components/ui/AnimatedHeader';
 import { Notification, notificationsData } from '@/constants/notiData';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   Alert,
@@ -18,12 +19,17 @@ export default function NotificationScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const headerTranslateY = scrollY.interpolate({
     inputRange: [0, 100],
     outputRange: [0, -100],
     extrapolate: 'clamp',
   });
+
+  const handlePostPress = (postId: string) => {
+    
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -73,12 +79,10 @@ export default function NotificationScreen() {
       markAsRead(notification.id);
     }
 
-    // TODO: Navigate to specific screen based on notification type
-    console.log('Notification pressed:', notification);
-    Alert.alert(
-      'Thông báo',
-      `Bạn đã nhấn vào thông báo từ ${notification.user.name}`
-    );
+   router.push({
+      pathname: '/post',
+      params: { id: notification.id }
+    });
   }, [markAsRead]);
 
   // Get unread count
