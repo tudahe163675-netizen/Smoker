@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -26,7 +27,7 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function PostDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { post, comments, loading, addComment, likeComment } = usePostDetails(id!);
+  const { post, comments, loading, addComment, likeComment, likePost } = usePostDetails(id!);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -41,7 +42,6 @@ export default function PostDetailScreen() {
     return `${Math.floor(diffInHours / 24)} ngày trước`;
   };
 
-  // Handle scroll position for image counter
   const handleImageScroll = (event: any) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
     const currentIndex = Math.round(contentOffsetX / screenWidth);
@@ -70,6 +70,39 @@ export default function PostDetailScreen() {
 
   const handleLikeComment = (commentId: string) => {
     likeComment(commentId);
+  };
+
+  const handleLikePost = () => {
+    if (post) {
+      likePost(post.id);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!post) return;
+
+    try {
+      const result = await Share.share({
+        message: `${post.content}\n\nXem thêm tại Smoker App`,
+        title: 'Chia sẻ bài viết',
+        url: `https://smoker.app/post/${post.id}`, // Thay bằng URL thật
+      });
+
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // Đã chia sẻ với activity type
+          console.log('Shared with activity type:', result.activityType);
+        } else {
+          // Đã chia sẻ
+          Alert.alert('Thành công', 'Đã chia sẻ bài viết');
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // Đã hủy
+        console.log('Share dismissed');
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể chia sẻ bài viết');
+    }
   };
 
   const handleUserPress = (userId: string) => {
@@ -193,7 +226,6 @@ export default function PostDetailScreen() {
 
             <Text style={styles.postContent}>{post.content}</Text>
 
-            {/* Updated Image Gallery */}
             {post.images.length > 0 && (
               <View style={styles.imageGalleryContainer}>
                 <FlatList
@@ -216,7 +248,6 @@ export default function PostDetailScreen() {
                   onScroll={handleImageScroll}
                   scrollEventThrottle={16}
                 />
-                {/* Image Counter */}
                 {post.images.length > 1 && (
                   <View style={styles.imageCounter}>
                     <Text style={styles.imageCounterText}>
@@ -244,7 +275,10 @@ export default function PostDetailScreen() {
             </View>
 
             <View style={styles.postActions}>
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={handleLikePost}
+              >
                 <Ionicons
                   name={post.isLiked ? "heart" : "heart-outline"}
                   size={24}
@@ -263,7 +297,10 @@ export default function PostDetailScreen() {
                 <Text style={styles.actionText}>Bình luận</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionButton}>
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={handleShare}
+              >
                 <Ionicons name="share-outline" size={22} color="#6b7280" />
                 <Text style={styles.actionText}>Chia sẻ</Text>
               </TouchableOpacity>

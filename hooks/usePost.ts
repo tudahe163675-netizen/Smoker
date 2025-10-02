@@ -1,4 +1,3 @@
-// hooks/usePostDetails.ts
 import { Comment, CreateCommentData, mockComments, mockPosts, Post } from '@/constants/feedData';
 import { useCallback, useEffect, useState } from 'react';
 import { feedApi } from '../services/feedApi';
@@ -125,6 +124,48 @@ export const usePostDetails = (postId: string) => {
     }
   };
 
+  // Thêm function likePost
+  const likePost = async (): Promise<void> => {
+    if (!post) return;
+
+    // Optimistic update
+    setPost(prevPost => {
+      if (!prevPost) return prevPost;
+      return {
+        ...prevPost,
+        isLiked: !prevPost.isLiked,
+        likes: prevPost.isLiked ? prevPost.likes - 1 : prevPost.likes + 1,
+      };
+    });
+
+    try {
+      const response = await feedApi.likePost(postId);
+      
+      if (!response.success) {
+        // Revert nếu API fail
+        setPost(prevPost => {
+          if (!prevPost) return prevPost;
+          return {
+            ...prevPost,
+            isLiked: !prevPost.isLiked,
+            likes: prevPost.isLiked ? prevPost.likes - 1 : prevPost.likes + 1,
+          };
+        });
+      }
+    } catch (err) {
+      console.error('Error liking post:', err);
+      // Revert nếu có lỗi
+      setPost(prevPost => {
+        if (!prevPost) return prevPost;
+        return {
+          ...prevPost,
+          isLiked: !prevPost.isLiked,
+          likes: prevPost.isLiked ? prevPost.likes - 1 : prevPost.likes + 1,
+        };
+      });
+    }
+  };
+
   useEffect(() => {
     fetchPostDetails();
   }, [fetchPostDetails]);
@@ -137,5 +178,6 @@ export const usePostDetails = (postId: string) => {
     fetchPostDetails,
     addComment,
     likeComment,
+    likePost, // Export function
   };
 };
