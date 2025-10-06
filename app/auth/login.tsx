@@ -61,7 +61,7 @@ export default function LoginScreen() {
         >
           <View style={styles.logoContainer}>
             <Image
-              source={require('@/assets/images/icon.png')}
+              source={require('@/assets/images/logo.jpeg')}
               style={styles.reactLogo}
               contentFit="contain"
             />

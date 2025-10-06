@@ -8,7 +8,7 @@ export default function SplashScreen() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const isLoggedIn = true;
+      const isLoggedIn = false;
       if (isLoggedIn) {
         router.replace('/(tabs)');
       } else {
@@ -22,7 +22,7 @@ export default function SplashScreen() {
     <View style={styles.container}>
       <View style={styles.logoContainer}>
       <Image
-          source={require('@/assets/images/icon.png')}
+          source={require('@/assets/images/logo.jpeg')}
           style={styles.reactLogo}
           contentFit="contain"
         />

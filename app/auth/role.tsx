@@ -53,7 +53,7 @@ export default function SelectRoleScreen() {
       <View style={styles.content}>
         <View style={styles.logoContainer}>
           <Image
-            source={require('@/assets/images/icon.png')}
+            source={require('@/assets/images/logo.jpeg')}
             style={styles.logo}
             contentFit="contain"
           />

@@ -28,7 +28,7 @@ export default function RegisterScreen() {
       Alert.alert('Lỗi', 'Bạn phải đồng ý với điều khoản và điều kiện');
       return;
     }
-    router.push('/auth/role');
+    router.push('/auth/login');
   };
 
   return (
@@ -58,7 +58,7 @@ export default function RegisterScreen() {
         >
           <View style={styles.logoContainer}>
             <Image
-              source={require('@/assets/images/icon.png')}
+              source={require('@/assets/images/logo.jpeg')}
               style={styles.reactLogo}
               contentFit="contain"
             />
