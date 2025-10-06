@@ -1,4 +1,5 @@
 import { Role } from '@/constants/authData';
+import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -7,6 +8,7 @@ import { Alert, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } 
 
 export default function SelectRoleScreen() {
   const router = useRouter();
+  const { upgradeRole } = useAuth();
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
   const roles = [
@@ -30,7 +32,9 @@ export default function SelectRoleScreen() {
         },
         {
           text: 'Nâng cấp',
-          onPress: () => router.replace('/(tabs)'), // Thay bằng logic nâng cấp thực tế nếu có
+          onPress: () => {
+            upgradeRole(role);
+          }
         },
       ]
     );

@@ -1,5 +1,5 @@
 import { AuthState, Role } from '@/constants/authData';
-import { loginApi } from '@/services/authApi';
+import { loginApi, upgradeRoleApi } from '@/services/authApi'; // Cập nhật đường dẫn nếu cần
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -18,7 +18,15 @@ export const useAuth = () => {
     const loadAuthState = async () => {
       const savedEmail = await AsyncStorage.getItem('userEmail');
       const savedToken = await AsyncStorage.getItem('token');
-      if (savedEmail && savedToken) {
+      const savedRole = await AsyncStorage.getItem('role') as Role | null;
+      if (savedEmail && savedToken && savedRole) {
+        setAuthState({
+          isAuthenticated: true,
+          userEmail: savedEmail,
+          token: savedToken,
+          role: savedRole,
+        });
+      } else if (savedEmail && savedToken) {
         setAuthState({
           isAuthenticated: true,
           userEmail: savedEmail,
@@ -44,6 +52,7 @@ export const useAuth = () => {
         if (rememberMe) {
           await AsyncStorage.setItem('userEmail', email);
           await AsyncStorage.setItem('token', token);
+          await AsyncStorage.setItem('role', role);
         }
         router.replace('/(tabs)');
       } else {
@@ -54,11 +63,37 @@ export const useAuth = () => {
     }
   };
 
+  const upgradeRole = async (newRole: Role) => {
+    if (!authState.userEmail) {
+      Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
+      return;
+    }
+    try {
+      const response = await upgradeRoleApi(authState.userEmail, newRole);
+      if (response.success) {
+        const { newRole: updatedRole } = response.data;
+        setAuthState((prev) => ({
+          ...prev,
+          role: updatedRole,
+        }));
+        // Lưu role mới vào AsyncStorage
+        await AsyncStorage.setItem('role', updatedRole);
+        Alert.alert('Thành công', 'Vai trò đã được nâng cấp!');
+        // Có thể điều hướng hoặc refresh
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Nâng cấp thất bại', response.message || 'Có lỗi xảy ra');
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Có lỗi xảy ra khi nâng cấp');
+    }
+  };
+
   const logout = async () => {
-    await AsyncStorage.multiRemove(['userEmail', 'token']);
+    await AsyncStorage.multiRemove(['userEmail', 'token', 'role']);
     setAuthState({ isAuthenticated: false, userEmail: undefined, role: undefined, token: undefined });
     router.replace('/auth/login');
   };
 
-  return { authState, login, logout };
+  return { authState, login, logout, upgradeRole };
 };

@@ -10,8 +10,8 @@ export default function TabLayout() {
   const activeColor = '#2563eb';
   const inactiveColor = '#6b7280';
   const { unreadCount } = useNotifications();
-  const { authState } = useAuth();
-
+  const { authState } = useAuth();  
+  
   const showTableTab = authState.role === Role.BAR_OWNER;
 
   return (

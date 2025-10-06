@@ -16,6 +16,7 @@ export const AUTH_CONSTANTS = {
   STORAGE_KEYS: {
     USER_EMAIL: 'userEmail',
     TOKEN: 'token',
+    ROLE: 'role',
   },
   DEFAULT_ROLE: Role.USER,
   ROLES: [
@@ -25,7 +26,7 @@ export const AUTH_CONSTANTS = {
     Role.DANCER,
   ],
   FAKE_USERS: [
-    { email: 'namnt', password: '123', role: Role.USER },
+    { email: 'user', password: '123', role: Role.USER },
     { email: 'bar', password: '123', role: Role.BAR_OWNER },
     { email: 'dj', password: '123', role: Role.DJ },
     { email: 'dancer', password: '123', role: Role.DANCER },
