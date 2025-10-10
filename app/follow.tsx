@@ -4,17 +4,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    RefreshControl,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  RefreshControl,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -158,7 +158,7 @@ export default function FollowScreen() {
     if (user.isFollowing) {
       Alert.alert(
         'Bỏ theo dõi',
-        `Bạn có chắc muốn bỏ theo dõi ${user.name}?`,
+        `Bạn có chắc muốn bỏ theo dõi ${user.name}?\n\n⚠️ Bạn sẽ không còn thấy bài viết của họ nữa.`,
         [
           { text: 'Hủy', style: 'cancel' },
           {
@@ -176,11 +176,11 @@ export default function FollowScreen() {
   const handleRemoveFollower = useCallback((user: FollowUser) => {
     Alert.alert(
       'Xóa người theo dõi',
-      `Bạn có chắc muốn xóa ${user.name} khỏi danh sách người theo dõi?`,
+      `Bạn có chắc muốn xóa ${user.name} khỏi danh sách người theo dõi?\n\n⚠️ Họ sẽ không còn thấy bài viết của bạn nữa (nếu tài khoản riêng tư).`,
       [
         { text: 'Hủy', style: 'cancel' },
         {
-          text: 'Xóa',
+          text: 'Xóa người theo dõi',
           style: 'destructive',
           onPress: () => currentData.handleRemoveFollower(user.userId),
         },
@@ -238,8 +238,9 @@ export default function FollowScreen() {
               style={styles.removeButton}
               onPress={() => handleRemoveFollower(item)}
               disabled={isLoading}
+              activeOpacity={0.7}
             >
-              <Ionicons name="close" size={18} color="#ef4444" />
+              <Ionicons name="person-remove" size={18} color="#ef4444" />
             </TouchableOpacity>
           )}
 
@@ -250,13 +251,14 @@ export default function FollowScreen() {
             ]}
             onPress={() => handleFollowPress(item)}
             disabled={isLoading}
+            activeOpacity={0.8}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color={item.isFollowing ? '#6b7280' : '#fff'} />
             ) : (
               <>
                 <Ionicons 
-                  name={item.isFollowing ? 'checkmark' : 'add'} 
+                  name={item.isFollowing ? 'checkmark-circle' : 'add-circle'} 
                   size={16} 
                   color={item.isFollowing ? '#6b7280' : '#fff'}
                   style={{ marginRight: 4 }}
@@ -267,7 +269,7 @@ export default function FollowScreen() {
                     item.isFollowing && styles.followingButtonText,
                   ]}
                 >
-                  {item.isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+                  {item.isFollowing ? 'Đang follow' : 'Follow'}
                 </Text>
               </>
             )}
@@ -316,7 +318,7 @@ export default function FollowScreen() {
   if (currentData.loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
         
         {/* Header */}
         <View style={styles.header}>
@@ -340,7 +342,7 @@ export default function FollowScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -571,7 +573,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 18,
     backgroundColor: '#fef2f2',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#fecaca',
   },
   followButton: {
