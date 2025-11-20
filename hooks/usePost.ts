@@ -22,7 +22,6 @@ export const usePostDetails = (postId: string) => {
 
     try {
       const postResponse = await feedApi.getPostDetails(postId);
-      console.log(postResponse.data);
 
       if (postResponse.success && postResponse.data) {
         setPost(postResponse.data);

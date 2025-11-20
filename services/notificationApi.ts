@@ -32,7 +32,7 @@ class NotificationApiService {
 
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('API Error: NotificationApiService>>>', error);
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error occurred',

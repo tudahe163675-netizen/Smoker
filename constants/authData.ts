@@ -11,4 +11,7 @@ export interface AuthState {
   role?: Role;
   currentId?: string;
   token?: string;
+  type?: string;
+  avatar?: string;
+  EntityAccountId?: string;
 }

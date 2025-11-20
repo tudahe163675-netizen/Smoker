@@ -54,3 +54,21 @@ export const registerApi = async (
     };
   }
 };
+
+export const fetchUserEntities = async (userId: string, token: string) => {
+try {
+    const response = await fetch(
+    `${API_CONFIG.BASE_URL}/user/${userId}/entities`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+
+  const json = await response.json();  
+  return json;
+} catch (error) {
+  console.log("fetchUserEntities ",error);
+}
+};

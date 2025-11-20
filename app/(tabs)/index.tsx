@@ -183,9 +183,6 @@ export default function HomeScreen() {
   const renderItem = ({ item }: { item: Post }) => {
     const likeCount = Object.keys(item.likes || {}).length;
     const commentCount = Object.keys(item.comments || {}).length;
-    // const isLiked = !!Object.values(item.likes || {}).find(
-    //   like => like.accountId === currentUserId
-    // );
     const isLiked = !!currentUserId && !!Object.values(item.likes || {}).find(
       like => like.accountId === currentUserId
     );
@@ -201,7 +198,6 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <Text style={styles.subText}>
               {formatTime(item.createdAt)}
-              {/* {item.location && ` • ${item.location}`} */}
             </Text>
           </View>
         </View>

@@ -63,10 +63,11 @@ export interface CreateCommentData {
   parentCommentId?: string;
 }
 
-export const getUserById = (userId: string): User | undefined => {
-  return mockUsers.find(user => user.id === userId);
-};
-
-export const getPostsByUserId = (userId: string) => {
-  // return mockPosts.filter(post => post.userId === userId);
-};
+export interface UserPost {
+  id: string;
+  name: string;
+  avatar: string;
+  role: string;
+  type: string;
+  EntityAccountId: string;
+}

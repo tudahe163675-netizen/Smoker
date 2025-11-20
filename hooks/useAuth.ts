@@ -1,5 +1,5 @@
 import { AuthState, Role } from '@/constants/authData';
-import { loginApi, upgradeRoleApi } from '@/services/authApi';
+import { fetchUserEntities, loginApi, upgradeRoleApi } from '@/services/authApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -13,6 +13,9 @@ export const useAuth = () => {
     role: undefined,
     token: undefined,
     currentId: undefined,
+    avatar: undefined,
+    type: undefined,
+    EntityAccountId: undefined,
   });
 
   // Load state login nếu user nhớ đăng nhập
@@ -22,6 +25,9 @@ export const useAuth = () => {
       const savedToken = await AsyncStorage.getItem('token');
       const savedRole = await AsyncStorage.getItem('role') as Role | null;
       const savedCurrentId = await AsyncStorage.getItem('currentId');
+      const savedAvatar = await AsyncStorage.getItem('avatar');
+      const savedType = await AsyncStorage.getItem('type');
+      const savedEntityAccountId = await AsyncStorage.getItem('EntityAccountId');
 
       if (savedEmail && savedToken) {
         setAuthState({
@@ -29,12 +35,16 @@ export const useAuth = () => {
           userEmail: savedEmail,
           token: savedToken,
           currentId: savedCurrentId || undefined,
+          avatar: savedAvatar || undefined,
+          type: savedType || undefined,
+          EntityAccountId: savedEntityAccountId || undefined,
           role: savedRole || Role.CUSTOMER,
         });
       }
     };
     loadAuthState();
   }, []);
+
 
   const login = async (email: string, password: string, rememberMe: boolean) => {
     try {
@@ -45,25 +55,45 @@ export const useAuth = () => {
         return;
       }
 
+      const token = res.token;
+      const currentId = res.user.id;
       const role: Role = res.user?.role || Role.CUSTOMER;
 
-      setAuthState({
+      const entities = await fetchUserEntities(currentId, token);
+      const mainEntity = entities[0];
+
+      const avatar = mainEntity.avatar;
+      const type = mainEntity.type;
+      const EntityAccountId = mainEntity.EntityAccountId;
+
+      const newAuth: AuthState = {
         isAuthenticated: true,
         userEmail: res.user.email,
         role,
-        token: res.token,
-        currentId: res.user.id
-      });
+        token,
+        currentId,
+        avatar,
+        type,
+        EntityAccountId,
+      };
+
+      setAuthState(newAuth);
+
       if (rememberMe) {
         await AsyncStorage.setItem('userEmail', res.user.email);
-        await AsyncStorage.setItem('token', res.token);
+        await AsyncStorage.setItem('token', token);
         await AsyncStorage.setItem('role', role);
-        await AsyncStorage.setItem('currentId', res.user.id);
+        await AsyncStorage.setItem('currentId', currentId);
+        if (avatar) await AsyncStorage.setItem('avatar', avatar);
+        if (type) await AsyncStorage.setItem('type', type);
+        if (EntityAccountId) await AsyncStorage.setItem('EntityAccountId', EntityAccountId);
       }
 
       router.replace('/(tabs)');
 
     } catch (error) {
+      console.log(error);
+
       Alert.alert('Lỗi', 'Không thể kết nối đến server');
     }
   };
@@ -99,7 +129,10 @@ export const useAuth = () => {
       userEmail: undefined,
       role: undefined,
       token: undefined,
-      currentId: undefined
+      currentId: undefined,
+      type: undefined,
+      avatar: undefined,
+      EntityAccountId: undefined,
     });
     router.replace('/auth/login');
   };
