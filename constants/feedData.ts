@@ -58,9 +58,11 @@ export interface CreatePostData {
 }
 
 export interface CreateCommentData {
-  postId: string;
+  accountId: string;
   content: string;
-  parentCommentId?: string;
+  entityAccountId: string;
+  entityId: string;
+  entityType: string;
 }
 
 export interface UserPost {

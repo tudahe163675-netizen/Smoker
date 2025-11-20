@@ -52,17 +52,14 @@ export default function PostDetailScreen() {
 
   const handleSubmitComment = async () => {
     if (!commentText.trim() || !post) return;
-
+    
     setSubmittingComment(true);
     try {
-      // const success = await addComment({
-      //   postId: post.id,
-      //   content: commentText.trim(),
-      // });
+      const success = await addComment(commentText.trim());
 
-      // if (success) {
-      //   setCommentText('');
-      // }
+      if (success) {
+        setCommentText('');
+      }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể gửi bình luận');
     } finally {

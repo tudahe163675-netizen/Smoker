@@ -1,11 +1,12 @@
-import { CreateCommentData, Post } from '@/constants/feedData';
+import { CreateCommentData } from '@/constants/feedData';
 import { FeedApiService } from '@/services/feedApi';
 import { CommentData } from '@/types/commentType';
+import { PostData } from '@/types/postType';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from './useAuth';
 
 export const usePostDetails = (postId: string) => {
-  const [post, setPost] = useState<Post | null>(null);
+  const [post, setPost] = useState<PostData | null>(null);
   const [comments, setComments] = useState<CommentData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,43 +41,46 @@ export const usePostDetails = (postId: string) => {
     }
   }, [postId]);
 
-  const addComment = async (commentData: CreateCommentData) => {
-    try {
-      const response = await feedApi.createComment(commentData);
+const addComment = async (content: string) => {
+  if (!post || !authState.currentId) return false;
+  console.log('post.entityId>>>', post.entityId);
+  console.log('post.post.entityType>>>', post.entityType);
 
-      // if (response.success && response.data) {
-      //   setComments(prev => [response.data!, ...prev]);
-      //   setPost(prev => prev ? { ...prev, commentsCount: prev.commentsCount + 1 } : null);
-      //   return true;
-      // } else {
-      //   // Fallback to local creation
-      //   const newComment: Comment = {
-      //     id: Date.now().toString(),
-      //     userId: currentUserId || '10',
-      //     user: {
-      //       id: currentUserId || '10',
-      //       name: 'Bạn',
-      //       username: '@me',
-      //       avatar: 'https://i.pravatar.cc/100?img=10',
-      //       followers: 1250,
-      //       following: 356,
-      //       posts: 42,
-      //     },
-      //     content: commentData.content,
-      //     createdAt: new Date().toISOString(),
-      //     likes: 0,
-      //     isLiked: false,
-      //   };
-
-      //   setComments(prev => [newComment, ...prev]);
-      //   setPost(prev => prev ? { ...prev, commentsCount: prev.commentsCount + 1 } : null);
-      //   return false;
-      // }
-    } catch (err) {
-      console.error('Error adding comment:', err);
-      return false;
-    }
+  const commentData: CreateCommentData = {
+    content,
+    accountId: authState.currentId!!,
+    entityAccountId: authState.EntityAccountId!!,
+    entityId: post.entityId,
+    entityType: post.entityType,
   };
+
+  try {
+    const response = await feedApi.createComment(commentData, post._id);
+
+    if (response.success && response.data) {
+      // Lấy comment mới nhất từ post.comments
+      const commentsMap = response.data.comments;
+      const newCommentId = Object.keys(commentsMap).pop(); // lấy comment cuối cùng
+      const newComment = commentsMap![newCommentId!];
+
+      // Cập nhật post.comments
+      setPost(prevPost => prevPost ? {
+        ...prevPost,
+        comments: {
+          ...prevPost.comments,
+          [newComment._id]: newComment
+        }
+      } : null);
+
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error('Error adding comment:', err);
+    return false;
+  }
+};
+
 
   const likeComment = async (commentId: string)=> {
     // setComments(prevComments =>

@@ -1,4 +1,6 @@
 import { CreateCommentData, CreatePostData, Post, User } from "@/constants/feedData";
+import { CommentData } from "@/types/commentType";
+import { PostData } from "@/types/postType";
 import { API_CONFIG } from "./apiConfig";
 
 interface ApiResponse<T> {
@@ -81,8 +83,8 @@ export class FeedApiService {
     });
   }
 
-  async getPostDetails(postId: string): Promise<ApiResponse<Post>> {
-    return this.makeRequest<Post>(`/posts/${postId}`);
+  async getPostDetails(postId: string): Promise<ApiResponse<PostData>> {
+    return this.makeRequest<PostData>(`/posts/${postId}`);
   }
 
   async updatePost(postId: string, postData: { content: string }): Promise<ApiResponse<Post>> {
@@ -102,8 +104,8 @@ export class FeedApiService {
     return this.makeRequest<Comment[]>(`/posts/${postId}/comments`);
   }
 
-  async createComment(commentData: CreateCommentData): Promise<ApiResponse<Comment>> {
-    return this.makeRequest<Comment>('/comments', {
+  async createComment(commentData: CreateCommentData, postId: string): Promise<ApiResponse<CommentData>> {
+    return this.makeRequest<CommentData>(`/posts/${postId}/comments`, {
       method: 'POST',
       body: JSON.stringify(commentData),
     });
