@@ -25,8 +25,8 @@ export interface AddressData {
 }
 
 export interface UpdateProfileRequestData {
-  avatar?:UploadFile ;
-  background?: string;
+  avatar?: UploadFile;
+  background?: UploadFile;  // Thay đổi từ string sang UploadFile
   userName?: string;
   phone?: string;
   bio?: string;

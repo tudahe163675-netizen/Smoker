@@ -50,7 +50,7 @@ type TabType = 'info' | 'posts' | 'photos';
 export default function ProfileScreen() {
   const router = useRouter();
   const userId = '1';
-  const { authState, logout } = useAuth(); // Lấy authState để kiểm tra role
+  const { authState, logout } = useAuth();
   const {
     profile,
     loading,
@@ -70,30 +70,25 @@ export default function ProfileScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [refreshing, setRefreshing] = useState(false);
 
-  const allPhotos = getAllPhotos(mockPosts);  
+  const allPhotos = getAllPhotos(mockPosts);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // await Promise.all([fetchProfile(), refreshBalance()]);
-    await fetchProfile()
+    await fetchProfile();
     setRefreshing(false);
   }, [fetchProfile]);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc chắn muốn đăng xuất?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đăng xuất',
-          style: 'destructive',
-          onPress: () => {
-            logout();
-          },
+    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: () => {
+          logout();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleTopUp = () => {
@@ -161,8 +156,14 @@ export default function ProfileScreen() {
   };
 
   const saveEdit = async () => {
-    const success = await updateProfileField(editingField, tempValue);
+    if (!tempValue.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập giá trị');
+      return;
+    }
+
     setEditModalVisible(false);
+    
+    const success = await updateProfileField(editingField, tempValue);
 
     if (success) {
       Alert.alert('Thành công', 'Đã cập nhật thông tin');
@@ -208,7 +209,7 @@ export default function ProfileScreen() {
         <Ionicons name={icon as any} size={20} color="#6b7280" />
         <View style={styles.profileItemText}>
           <Text style={styles.profileItemLabel}>{label}</Text>
-          <Text style={styles.profileItemValue}>{value}</Text>
+          <Text style={styles.profileItemValue}>{value || 'Chưa cập nhật'}</Text>
         </View>
       </View>
       {editable && <Ionicons name="chevron-forward" size={16} color="#6b7280" />}
@@ -274,7 +275,10 @@ export default function ProfileScreen() {
         onPress={() => pickImage('cover')}
         disabled={imageLoading === 'cover'}
       >
-        <Image source={{ uri: profile?.coverImage }} style={styles.coverImage} />
+        <Image 
+          source={{ uri: profile?.background || profile?.coverImage }} 
+          style={styles.coverImage} 
+        />
         <View style={styles.coverOverlay}>
           {imageLoading === 'cover' ? (
             <ActivityIndicator color="#fff" size="small" />
@@ -303,8 +307,8 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       <View style={styles.nameSection}>
-        <Text style={styles.name}>{profile?.userName}</Text>
-        <Text style={styles.bio}>{profile?.bio}</Text>
+        <Text style={styles.name}>{profile?.userName || 'Người dùng'}</Text>
+        <Text style={styles.bio}>{profile?.bio || 'Chưa có tiểu sử'}</Text>
       </View>
 
       <View style={styles.balanceSection}>
@@ -313,7 +317,9 @@ export default function ProfileScreen() {
             <Ionicons name="wallet-outline" size={24} color="#10b981" />
             <View style={styles.balanceText}>
               <Text style={styles.balanceLabel}>Số dư hiện tại</Text>
-              {/* <Text style={styles.balanceAmount}>{formatCurrency(profile.balance)}</Text> */}
+              <Text style={styles.balanceAmount}>
+                {profile ? formatCurrency(0) : '0 ₫'}
+              </Text>
             </View>
           </View>
           <TouchableOpacity style={styles.topUpButton} onPress={handleTopUp}>
@@ -323,7 +329,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/*Nâng cấp tài khoản */}
+      {/* Nâng cấp tài khoản - uncomment nếu cần */}
       {/* {authState.role === Role.USER && (
         <TouchableOpacity style={styles.upgradeButton} onPress={handleUpgradeAccount}>
           <Ionicons name="arrow-up-circle" size={20} color="#fff" />
@@ -348,7 +354,7 @@ export default function ProfileScreen() {
 
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          {/* <Text style={styles.statNumber}>{profile.posts}</Text> */}
+          <Text style={styles.statNumber}>{mockPosts.length}</Text>
           <Text style={styles.statLabel}>Bài viết</Text>
         </View>
 
@@ -357,7 +363,7 @@ export default function ProfileScreen() {
           onPress={handleFollowersPress}
           activeOpacity={0.7}
         >
-          {/* <Text style={styles.statNumber}>{profile.followers.toLocaleString()}</Text> */}
+          <Text style={styles.statNumber}>0</Text>
           <Text style={styles.statLabel}>Người theo dõi</Text>
         </TouchableOpacity>
 
@@ -366,7 +372,7 @@ export default function ProfileScreen() {
           onPress={handleFollowingPress}
           activeOpacity={0.7}
         >
-          {/* <Text style={styles.statNumber}>{profile.following}</Text> */}
+          <Text style={styles.statNumber}>0</Text>
           <Text style={styles.statLabel}>Đang theo dõi</Text>
         </TouchableOpacity>
       </View>
@@ -429,54 +435,45 @@ export default function ProfileScreen() {
           icon="person-outline"
           onPress={() => openEditModal('name', profile?.userName || '')}
         />
-        {/* <ProfileItem
+        <ProfileItem
           label="Số điện thoại"
-          value={profile.phone}
+          value={profile?.phone || ''}
           icon="call-outline"
-          onPress={() => openEditModal('phone', profile.phone)}
-        /> */}
+          onPress={() => openEditModal('phone', profile?.phone || '')}
+        />
         <ProfileItem
           label="Tiểu sử"
-          value={profile?.bio || ""}
+          value={profile?.bio || ''}
           icon="document-text-outline"
-          onPress={() => openEditModal('bio', profile?.bio || "")}
+          onPress={() => openEditModal('bio', profile?.bio || '')}
         />
-        {/* <ProfileItem
-          label="Địa điểm"
-          value={profile.location}
-          icon="location-outline"
-          onPress={() => openEditModal('location', profile.location)}
-        /> */}
-        {/* <ProfileItem
-          label="Website"
-          value={profile.website}
-          icon="globe-outline"
-          onPress={() => openEditModal('website', profile.website)}
-        /> */}
+        <ProfileItem
+          label="Email"
+          value={profile?.email || ''}
+          icon="mail-outline"
+          editable={false}
+        />
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Mạng xã hội</Text>
         <ProfileItem
           label="TikTok"
-          // value={profile.tiktok}
-          value={"http://tiktok.com"}
+          value="http://tiktok.com"
           icon="logo-tiktok"
-          // onPress={() => openEditModal('tiktok', profile.tiktok)}
+          editable={false}
         />
         <ProfileItem
           label="Facebook"
-          // value={profile.facebook}
-          value={"http://facebook.com"}
+          value="http://facebook.com"
           icon="logo-facebook"
-          // onPress={() => openEditModal('facebook', profile.facebook)}
+          editable={false}
         />
         <ProfileItem
           label="Instagram"
-          // value={profile.instagram}
-          value={"http://instagram.com"}
+          value="http://instagram.com"
           icon="logo-instagram"
-          // onPress={() => openEditModal('instagram', profile.instagram)}
+          editable={false}
         />
       </View>
     </>

@@ -12,9 +12,7 @@ export const useProfile = (userId: string) => {
   const [error, setError] = useState<string | null>(null);
 
   const { authState } = useAuth();
-
   const token = authState.token;
-
   const profileApi = new ProfileApiService(token!!);
 
   const fetchProfile = useCallback(async () => {
@@ -35,93 +33,73 @@ export const useProfile = (userId: string) => {
     }
   }, [userId]);
 
-  const updateProfileField = async (field: string, value: FieldValue): Promise<boolean> => {
-  try {
-    let payload: any;
-
-    // Nếu value là file (avatar / background)
-    if (typeof value === 'object' && 'uri' in value) {
-      const formData = new FormData();
-      formData.append(field, {
-        uri: value.uri,
-        name: value.name,
-        type: value.type,
-      } as any);
-      payload = formData;
-    } else {
-      // Nếu value là text
-      const formData = new FormData();
-      formData.append(field, value);
-      payload = formData;
-    }
-
-    const response = await profileApi.updateProfile(payload);
-
-    if (response.success && response.data) {
-      // Có thể update state profile ở đây
-      // setProfile(response.data);
-      return true;
-    } else {
-      Alert.alert(
-        'Cảnh báo',
-        'Cập nhật offline. Thay đổi sẽ được đồng bộ khi có kết nối.'
-      );
-      return false;
-    }
-  } catch (err) {
-    console.error('Error updating profile:', err);
-    Alert.alert(
-      'Cảnh báo',
-      'Cập nhật offline. Thay đổi sẽ được đồng bộ khi có kết nối.'
-    );
-    return false;
-  }
-};
-
-  const updateProfileImage = async (type: 'avatar' | 'cover', imageUri: string): Promise<boolean> => {
+  // Cập nhật các trường text
+  const updateProfileField = async (field: string, value: string): Promise<boolean> => {
     try {
-      const response = await profileApi.updateProfileImage(userId, type, imageUri);
+      const updates: any = {};
+      
+      // Map field names từ UI sang API
+      const fieldMapping: { [key: string]: string } = {
+        'name': 'userName',
+        'bio': 'bio',
+        'phone': 'phone',
+      };
 
-      if (response.success && response.data) {
-        // setProfile(prev => ({
-        //   ...prev,
-        //   [type === 'avatar' ? 'avatar' : 'coverImage']: response.data!.imageUrl,
-        // }));
+      const apiField = fieldMapping[field] || field;
+      updates[apiField] = value;
+
+      const response = await profileApi.updateProfile(updates);
+
+      if (response.data) {
+        setProfile(response.data);
         return true;
       } else {
-        // Fallback to local update with original URI
-        // setProfile(prev => ({
-        //   ...prev,
-        //   [type === 'avatar' ? 'avatar' : 'coverImage']: imageUri,
-        // }));
+        Alert.alert('Cảnh báo', 'Cập nhật offline. Thay đổi sẽ được đồng bộ khi có kết nối.');
+        return false;
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      Alert.alert('Cảnh báo', 'Cập nhật offline. Thay đổi sẽ được đồng bộ khi có kết nối.');
+      return false;
+    }
+  };
+
+  // Cập nhật avatar hoặc cover image
+  const updateProfileImage = async (type: 'avatar' | 'cover', imageUri: string): Promise<boolean> => {
+    try {
+      const uploadFile: UploadFile = {
+        uri: imageUri,
+        name: `${type}_${Date.now()}.jpg`,
+        type: 'image/jpeg',
+      };
+
+      const updates: any = {};
+      
+      // Map type sang field name
+      if (type === 'avatar') {
+        updates.avatar = uploadFile;
+      } else {
+        updates.background = uploadFile; // API dùng 'background' cho cover image
+      }
+
+      const response = await profileApi.updateProfile(updates);
+
+      if (response.data) {
+        setProfile(response.data);
+        return true;
+      } else {
         Alert.alert('Cảnh báo', 'Cập nhật ảnh offline. Ảnh sẽ được tải lên khi có kết nối.');
         return false;
       }
     } catch (err) {
       console.error('Error updating image:', err);
-      // Still update locally for better UX
-      // setProfile(prev => ({
-      //   ...prev,
-      //   [type === 'avatar' ? 'avatar' : 'coverImage']: imageUri,
-      // }));
       Alert.alert('Cảnh báo', 'Cập nhật ảnh offline. Ảnh sẽ được tải lên khi có kết nối.');
       return false;
     }
   };
 
   const refreshBalance = async (): Promise<void> => {
-    // try {
-    //   const response = await profileApi.getUserBalance(userId);
-
-    //   if (response.success && response.data) {
-    //     setProfile(prev => ({
-    //       ...prev,
-    //       balance: response.data!.balance,
-    //     }));
-    //   }
-    // } catch (err) {
-    //   console.error('Error refreshing balance:', err);
-    // }
+    // Implement nếu cần
   };
 
   useEffect(() => {
