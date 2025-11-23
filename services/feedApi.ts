@@ -70,8 +70,52 @@ export class FeedApiService {
     return this.makeRequest<Post[]>(`/posts?page=${page}&limit=${limit}`);
   }
 
-  async createPost(postData: CreatePostData): Promise<ApiResponse<Post>> {
-    return this.makeRequest<Post>('/posts', {
+  async uploadPostMedia(files: { uri: string; type: 'image' | 'video' }[]): Promise<ApiResponse<Array<{ url: string; secure_url: string; public_id: string; format: string; type: string }>>> {
+    const formData = new FormData();
+    
+    files.forEach((file, index) => {
+      const fileExtension = file.uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = file.type === 'video' 
+        ? `video/${fileExtension}` 
+        : `image/${fileExtension}`;
+      
+      const fieldName = file.type === 'video' ? 'videos' : 'images';
+      
+      formData.append(fieldName, {
+        uri: file.uri,
+        type: mimeType,
+        name: `${file.type}_${Date.now()}_${index}.${fileExtension}`,
+      } as any);
+    });
+
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/posts/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Upload failed');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Upload Error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  async createPost(postData: CreatePostData): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>('/posts', {
       method: 'POST',
       body: JSON.stringify(postData),
     });

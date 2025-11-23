@@ -1,3 +1,4 @@
+import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -22,10 +23,13 @@ export const CommentInput: React.FC<CommentInputProps> = ({
   onSubmit,
   submitting,
 }) => {
+  const { authState } = useAuth();
+  const authorAvatar = authState.avatar;
+
   return (
     <View style={styles.commentInputContainer}>
       <Image
-        source={{ uri: 'https://i.pravatar.cc/100?img=10' }}
+        source={{ uri: authorAvatar ?? 'https://i.pravatar.cc/100?img=10' }}
         style={styles.commentInputAvatar}
       />
       <TextInput
@@ -60,7 +64,8 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 20,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderColor: '#e5e7eb',

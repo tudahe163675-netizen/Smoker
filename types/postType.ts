@@ -1,20 +1,40 @@
-import { CommentData } from "./commentType";
-
 export interface Like {
   accountId: string;
-  TypeRole: string; // ví dụ: 'Account'
+  TypeRole: string;
 }
 
-export interface PostData {
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string;
+  followers: number;
+  following: number;
+  posts: number;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  user: User;
+  content: string;
+  likes: number;
+  isLiked: boolean;
+  createdAt: string;
+}
+
+export interface Post {
   _id: string;
   accountId: string;
   entityAccountId: string;
   entityId: string;
-  entityType: string; // "Account" hoặc các loại khác
+  entityType: string;
   barId: string | null;
+  title?: string;
   content: string;
-  images: string; // nếu nhiều ảnh, có thể đổi thành string[]
-  type: string; // "post"
+  images?: string | Record<string, { url: string; caption: string }>; // Có thể là string hoặc object
+  videos?: Record<string, { url: string; caption: string }>;
+  type: string;
   expiredAt: string | null;
   musicId: string | null;
   songId: string | null;
@@ -23,7 +43,7 @@ export interface PostData {
   views: number;
   shares: number;
   repostedFromId: string | null;
-  status: string; // "active"
+  status: string;
   trashedAt: string | null;
   trashedBy: string | null;
   audioDuration: number | null;
@@ -43,5 +63,30 @@ export interface PostData {
 
   // Likes & comments
   likes: Record<string, Like>;
-  comments: Record<string, CommentData>;
+  comments: Record<string, Comment>;
+}
+
+export interface CreatePostData {
+  content: string;
+  files?: { uri: string; type: 'image' | 'video' }[];
+  images?: Record<string, { url: string; caption: string }>;
+  videos?: Record<string, { url: string; caption: string }>;
+  audios?: Record<string, { url: string; thumbnail: string; artist: string }>;
+  musicTitle?: string;
+  artistName?: string;
+  description?: string;
+  hashTag?: string;
+  musicPurchaseLink?: string;
+  musicBackgroundImage?: string;
+  type?: "post" | "story";
+  songId?: string;
+  musicId?: string;
+  entityAccountId?: string;
+  entityId?: string;
+  entityType?: "Account" | "BusinessAccount" | "BarPage";
+}
+
+export interface CreateCommentData {
+  content: string;
+  parentId?: string;
 }

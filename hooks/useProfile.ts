@@ -16,11 +16,14 @@ export const useProfile = (userId: string) => {
   const profileApi = new ProfileApiService(token!!);
 
   const fetchProfile = useCallback(async () => {
+    if (!token) return;
+
     setLoading(true);
     setError(null);
 
     try {
       const response = await profileApi.getUserProfile();
+
       if (response.data) {
         setProfile(response.data);
       } else {
@@ -31,13 +34,13 @@ export const useProfile = (userId: string) => {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [token]);
 
   // Cập nhật các trường text
   const updateProfileField = async (field: string, value: string): Promise<boolean> => {
     try {
       const updates: any = {};
-      
+
       // Map field names từ UI sang API
       const fieldMapping: { [key: string]: string } = {
         'name': 'userName',
@@ -65,7 +68,7 @@ export const useProfile = (userId: string) => {
   };
 
   // Cập nhật avatar hoặc cover image
-  const updateProfileImage = async (type: 'avatar' | 'cover', imageUri: string): Promise<boolean> => {
+  const updateProfileImage = async (type: 'avatar' | 'coverImage', imageUri: string): Promise<boolean> => {
     try {
       const uploadFile: UploadFile = {
         uri: imageUri,
@@ -74,7 +77,7 @@ export const useProfile = (userId: string) => {
       };
 
       const updates: any = {};
-      
+
       // Map type sang field name
       if (type === 'avatar') {
         updates.avatar = uploadFile;

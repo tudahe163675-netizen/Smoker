@@ -64,7 +64,7 @@ export default function ProfileScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingField, setEditingField] = useState<string>('');
   const [tempValue, setTempValue] = useState('');
-  const [imageLoading, setImageLoading] = useState<'avatar' | 'cover' | null>(null);
+  const [imageLoading, setImageLoading] = useState<'avatar' | 'coverImage' | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('info');
 
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -121,7 +121,7 @@ export default function ProfileScreen() {
   };
 
   const pickImage = useCallback(
-    async (type: 'avatar' | 'cover') => {
+    async (type: 'avatar' | 'coverImage') => {
       try {
         setImageLoading(type);
 
@@ -272,15 +272,15 @@ export default function ProfileScreen() {
     <>
       <TouchableOpacity
         style={styles.coverContainer}
-        onPress={() => pickImage('cover')}
-        disabled={imageLoading === 'cover'}
+        onPress={() => pickImage('coverImage')}
+        disabled={imageLoading === 'coverImage'}
       >
         <Image 
           source={{ uri: profile?.background || profile?.coverImage }} 
           style={styles.coverImage} 
         />
         <View style={styles.coverOverlay}>
-          {imageLoading === 'cover' ? (
+          {imageLoading === 'coverImage' ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <>

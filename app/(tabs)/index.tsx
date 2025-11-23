@@ -3,6 +3,7 @@ import { Post } from '@/constants/feedData';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';
 import { Ionicons } from '@expo/vector-icons';
+import { ResizeMode, Video } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useRef, useState } from 'react';
@@ -27,16 +28,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const PostInputBox = ({ openModal, pickImage }: { openModal: () => void; pickImage: () => void }) => (
+const PostInputBox = ({ openModal, pickMedia, avatar }: { openModal: () => void; pickMedia: () => void, avatar: string }) => (
   <View style={styles.postBox}>
     <Image
-      source={{ uri: 'https://i.pravatar.cc/100?img=10' }}
+      source={{ uri: avatar ?? 'https://i.pravatar.cc/100?img=10' }}
       style={styles.avatar}
     />
     <TouchableOpacity style={styles.postInput} onPress={openModal}>
       <Text style={{ color: '#6b7280' }}>Đăng bài...</Text>
     </TouchableOpacity>
-    <TouchableOpacity onPress={pickImage} style={styles.iconButton}>
+    <TouchableOpacity onPress={pickMedia} style={styles.iconButton}>
       <Ionicons name="image-outline" size={24} color="#6b7280" />
     </TouchableOpacity>
   </View>
@@ -46,17 +47,19 @@ export default function HomeScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [postText, setPostText] = useState('');
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedMedia, setSelectedMedia] = useState<{ uri: string; type: 'image' | 'video' }[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
   const { authState } = useAuth();
   const currentUserId = authState.currentId;
+  const authorAvatar = authState.avatar;
 
   const {
     posts,
     loading,
     refreshing,
     error,
+    uploading,
     createPost,
     likePost,
     refresh,
@@ -64,30 +67,46 @@ export default function HomeScreen() {
     hasMore
   } = useFeed();
 
-
-  const pickImage = useCallback(async () => {
+  const pickMedia = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.All, // Cho phép cả ảnh và video
         allowsMultipleSelection: true,
         quality: 0.8,
-        aspect: [4, 3],
         selectionLimit: 5,
+        videoMaxDuration: 60, // Giới hạn video 60 giây
       });
 
       if (!result.canceled) {
-        const imageUris = result.assets.map(asset => asset.uri);
-        setSelectedImages(prev => [...prev, ...imageUris]);
+        const media = result.assets.map(asset => ({
+          uri: asset.uri,
+          type: (asset.type === 'video' ? 'video' : 'image') as 'image' | 'video',
+        }));
+        
+        // Kiểm tra số lượng
+        if (media.length > 5) {
+          Alert.alert('Thông báo', 'Bạn chỉ có thể chọn tối đa 5 file');
+          return;
+        }
+        
+        setSelectedMedia(prev => {
+          const newMedia = [...prev, ...media];
+          if (newMedia.length > 5) {
+            Alert.alert('Thông báo', 'Tổng số file không được quá 5');
+            return prev;
+          }
+          return newMedia;
+        });
         setModalVisible(true);
       }
     } catch (error) {
-      console.error('Error picking images:', error);
-      Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
+      console.error('Error picking media:', error);
+      Alert.alert('Lỗi', 'Không thể chọn file. Vui lòng thử lại.');
     }
   }, []);
 
-  const removeImage = useCallback((index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  const removeMedia = useCallback((index: number) => {
+    setSelectedMedia(prev => prev.filter((_, i) => i !== index));
   }, []);
 
   const openModal = useCallback(() => {
@@ -96,14 +115,19 @@ export default function HomeScreen() {
 
   const closeModal = useCallback(() => {
     setModalVisible(false);
-    setSelectedImages([]);
+    setSelectedMedia([]);
     setPostText('');
   }, []);
 
   const submitPost = useCallback(async () => {
+    if (!postText.trim() && selectedMedia.length === 0) {
+      Alert.alert('Thông báo', 'Vui lòng nhập nội dung hoặc chọn ảnh/video');
+      return;
+    }
+
     const success = await createPost({
       content: postText,
-      images: selectedImages,
+      files: selectedMedia,
     });
 
     closeModal();
@@ -111,7 +135,7 @@ export default function HomeScreen() {
     if (success) {
       Alert.alert('Thành công', 'Bài viết đã được đăng!');
     }
-  }, [postText, selectedImages, createPost, closeModal]);
+  }, [postText, selectedMedia, createPost, closeModal]);
 
   const handleLike = useCallback((postId: string) => {
     likePost(postId);
@@ -124,19 +148,16 @@ export default function HomeScreen() {
       const result = await Share.share({
         message: `${post.content}\n\nXem thêm tại Smoker App`,
         title: 'Chia sẻ bài viết',
-        url: `https://smoker.app/post/${post.id}`, // Thay bằng URL thật
+        url: `https://smoker.app/post/${post._id}`,
       });
 
       if (result.action === Share.sharedAction) {
         if (result.activityType) {
-          // Đã chia sẻ với activity type
           console.log('Shared with activity type:', result.activityType);
         } else {
-          // Đã chia sẻ
           Alert.alert('Thành công', 'Đã chia sẻ bài viết');
         }
       } else if (result.action === Share.dismissedAction) {
-        // Đã hủy
         console.log('Share dismissed');
       }
     } catch (error) {
@@ -183,12 +204,51 @@ export default function HomeScreen() {
     }));
   };
 
+  const renderMediaItem = (mediaUrl: string, isVideo: boolean = false) => {
+    if (isVideo) {
+      return (
+        <Video
+          source={{ uri: mediaUrl }}
+          style={styles.postImage}
+          resizeMode={ResizeMode.COVER}
+          useNativeControls
+          shouldPlay={false}
+        />
+      );
+    } else {
+      return (
+        <Image
+          source={{ uri: mediaUrl }}
+          style={styles.postImage}
+          resizeMode="cover"
+        />
+      );
+    }
+  };
+
   const renderItem = ({ item }: { item: Post }) => {
     const likeCount = Object.keys(item.likes || {}).length;
     const commentCount = Object.keys(item.comments || {}).length;
     const isLiked = !!currentUserId && !!Object.values(item.likes || {}).find(
       like => like.accountId === currentUserId
     );
+
+    // Xử lý media (images hoặc videos)
+    // Images có thể là string hoặc object
+    let imageUrls: string[] = [];
+    if (item.images) {
+      if (typeof item.images === 'string') {
+        // Nếu là string, split bởi dấu phẩy
+        imageUrls = item.images.split(',').filter(url => url.trim());
+      } else if (typeof item.images === 'object') {
+        // Nếu là object, lấy tất cả URLs
+        imageUrls = Object.values(item.images).map(img => img.url);
+      }
+    }
+
+    const videoUrls = item.videos ? Object.values(item.videos).map(v => v.url) : [];
+    const hasMedia = imageUrls.length > 0 || videoUrls.length > 0;
+
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
@@ -204,22 +264,53 @@ export default function HomeScreen() {
             </Text>
           </View>
         </View>
+
         <TouchableOpacity onPress={() => handleComment(item._id)}>
           <Text style={styles.content}>{item.content}</Text>
         </TouchableOpacity>
 
-        {item.images && (
+        {hasMedia && (
           <View style={styles.imageGalleryContainer}>
-            <TouchableOpacity
-              style={styles.imageContainer}
-              onPress={() => handleComment(item._id)}
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={screenWidth - 16}
+              decelerationRate="fast"
+              onScroll={(event) => handleImageScroll(event, item._id)}
+              scrollEventThrottle={16}
             >
-              <Image
-                source={{ uri: item.images || "https://picsum.photos/400/300?random=10" }}
-                style={styles.postImage}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
+              {/* Hiển thị tất cả ảnh */}
+              {imageUrls.map((url, index) => (
+                <TouchableOpacity
+                  key={`image-${index}`}
+                  style={styles.imageContainer}
+                  onPress={() => handleComment(item._id)}
+                >
+                  {renderMediaItem(url, false)}
+                </TouchableOpacity>
+              ))}
+
+              {/* Hiển thị tất cả video */}
+              {videoUrls.map((url, index) => (
+                <TouchableOpacity
+                  key={`video-${index}`}
+                  style={styles.imageContainer}
+                  onPress={() => handleComment(item._id)}
+                >
+                  {renderMediaItem(url, true)}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Counter cho nhiều media */}
+            {(imageUrls.length + videoUrls.length) > 1 && (
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>
+                  {(currentImageIndexes[item._id] || 0) + 1}/{imageUrls.length + videoUrls.length}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -266,109 +357,8 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    )
-  }
-
-
-  // <View style={styles.card}>
-  // <View style={styles.cardHeader}>
-  //   <TouchableOpacity onPress={() => handleUserPress(item.userId)}>
-  //     <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
-  //   </TouchableOpacity>
-  //   <View style={styles.headerInfo}>
-  //     <TouchableOpacity onPress={() => handleUserPress(item.userId)}>
-  //       <Text style={styles.username}>{item.user.name}</Text>
-  //     </TouchableOpacity>
-  //     <Text style={styles.subText}>
-  //       {formatTime(item.createdAt)}
-  //       {item.location && ` • ${item.location}`}
-  //     </Text>
-  //   </View>
-  // </View>
-
-  //   <TouchableOpacity onPress={() => handleComment(item._id)}>
-  //     <Text style={styles.content}>{item.content}</Text>
-  //   </TouchableOpacity>
-
-  //   {item.images.length > 0 && (
-  //     <View style={styles.imageGalleryContainer}>
-  //       <FlatList
-  //         data={item.images}
-  //         horizontal
-  //         pagingEnabled
-  //         showsHorizontalScrollIndicator={false}
-  //         keyExtractor={(image, index) => `${item._id}-image-${index}`}
-  //         renderItem={({ item: image }) => (
-  //   <TouchableOpacity
-  //     style={styles.imageContainer}
-  //     onPress={() => handleComment(item._id)}
-  //   >
-  //     <Image
-  //       source={{ uri: image }}
-  //       style={styles.postImage}
-  //       resizeMode="cover"
-  //     />
-  //   </TouchableOpacity>
-  // )}
-  //         snapToInterval={screenWidth}
-  //         decelerationRate="fast"
-  //         onScroll={(event) => handleImageScroll(event, item._id)}
-  //         scrollEventThrottle={16}
-  //       />
-  //       {item.images.length > 1 && (
-  //         <View style={styles.imageCounter}>
-  //           <Text style={styles.imageCounterText}>
-  //             {(currentImageIndexes[item._id] || 0) + 1}/{item.images.length}
-  //           </Text>
-  //         </View>
-  //       )}
-  //     </View>
-  //   )}
-
-  // <View style={styles.statsContainer}>
-  //   <Text style={styles.statsText}>
-  //     {item.likes > 0 && `${item.likes} lượt thích`}
-  //     {item.likes > 0 && item.commentsCount > 0 && ' • '}
-  //     {item.commentsCount > 0 && `${item.commentsCount} bình luận`}
-  //   </Text>
-  // </View>
-
-  // <View style={styles.actions}>
-  //   <TouchableOpacity
-  //     style={styles.actionBtn}
-  //     onPress={() => handleLike(item._id)}
-  //   >
-  //     <Ionicons
-  //       name={item.isLiked ? "heart" : "heart-outline"}
-  //       size={20}
-  //       color={item.isLiked ? "#ef4444" : "#6b7280"}
-  //     />
-  //     <Text style={[
-  //       styles.actionText,
-  //       item.isLiked && { color: '#ef4444' }
-  //     ]}>
-  //       {item.isLiked ? 'Đã thích' : 'Thích'}
-  //     </Text>
-  //   </TouchableOpacity>
-
-  //   <TouchableOpacity
-  //     style={styles.actionBtn}
-  //     onPress={() => handleComment(item._id)}
-  //   >
-  //     <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />
-  //     <Text style={styles.actionText}>Bình luận</Text>
-  //   </TouchableOpacity>
-
-  //   <TouchableOpacity
-  //     style={styles.actionBtn}
-  //     onPress={() => handleShare(item)}
-  //   >
-  //     <Ionicons name="share-outline" size={18} color="#6b7280" />
-  //     <Text style={styles.actionText}>Chia sẻ</Text>
-  //   </TouchableOpacity>
-  // </View>
-  // </View>
-  // );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -386,7 +376,7 @@ export default function HomeScreen() {
         keyExtractor={(item) => item._id}
         style={[styles.container, { paddingTop: 40 }]}
         contentContainerStyle={{ paddingBottom: 40 }}
-        ListHeaderComponent={<PostInputBox openModal={openModal} pickImage={pickImage} />}
+        ListHeaderComponent={<PostInputBox openModal={openModal} pickMedia={pickMedia} avatar={authorAvatar}/>}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -399,7 +389,7 @@ export default function HomeScreen() {
         onEndReached={() => {
           if (!loading && hasMore) loadMore();
         }}
-        onEndReachedThreshold={0.5} // khi scroll tới 50% cuối
+        onEndReachedThreshold={0.5}
         ListFooterComponent={() => {
           if (!loading) return null;
           return (
@@ -415,7 +405,7 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
       />
 
-      {/* Modal thay thế BottomSheet */}
+      {/* Modal tạo bài viết */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -446,18 +436,33 @@ export default function HomeScreen() {
                 autoFocus={true}
               />
 
-              {selectedImages.length > 0 && (
+              {selectedMedia.length > 0 && (
                 <ScrollView
                   horizontal
                   style={styles.imagesPreview}
                   showsHorizontalScrollIndicator={false}
                 >
-                  {selectedImages.map((uri, index) => (
+                  {selectedMedia.map((media, index) => (
                     <View key={index} style={styles.imageWrapper}>
-                      <Image source={{ uri }} style={styles.selectedImage} />
+                      {media.type === 'video' ? (
+                        <>
+                          <Video
+                            source={{ uri: media.uri }}
+                            style={styles.selectedImage}
+                            resizeMode={ResizeMode.COVER}
+                            useNativeControls
+                            shouldPlay={false}
+                          />
+                          <View style={styles.videoLabel}>
+                            <Ionicons name="videocam" size={16} color="#fff" />
+                          </View>
+                        </>
+                      ) : (
+                        <Image source={{ uri: media.uri }} style={styles.selectedImage} />
+                      )}
                       <TouchableOpacity
                         style={styles.removeImageBtn}
-                        onPress={() => removeImage(index)}
+                        onPress={() => removeMedia(index)}
                       >
                         <Ionicons name="close-circle" size={24} color="#ef4444" />
                       </TouchableOpacity>
@@ -468,10 +473,13 @@ export default function HomeScreen() {
 
               <TouchableOpacity
                 style={styles.addImageButton}
-                onPress={pickImage}
+                onPress={pickMedia}
+                disabled={selectedMedia.length >= 5}
               >
-                <Ionicons name="image-outline" size={24} color="#1877f2" />
-                <Text style={styles.addImageText}>Thêm ảnh</Text>
+                <Ionicons name="image-outline" size={24} color={selectedMedia.length >= 5 ? "#9ca3af" : "#1877f2"} />
+                <Text style={[styles.addImageText, selectedMedia.length >= 5 && { color: '#9ca3af' }]}>
+                  {selectedMedia.length >= 5 ? 'Đã đạt giới hạn (5 file)' : 'Thêm ảnh/video'}
+                </Text>
               </TouchableOpacity>
             </ScrollView>
 
@@ -479,12 +487,16 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                (!postText.trim() && selectedImages.length === 0) && styles.submitBtnDisabled
+                ((!postText.trim() && selectedMedia.length === 0) || uploading) && styles.submitBtnDisabled
               ]}
               onPress={submitPost}
-              disabled={!postText.trim() && selectedImages.length === 0}
+              disabled={(!postText.trim() && selectedMedia.length === 0) || uploading}
             >
-              <Text style={styles.submitBtnText}>Đăng bài</Text>
+              {uploading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitBtnText}>Đăng bài</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -686,6 +698,15 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 12,
+  },
+  videoLabel: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   removeImageBtn: {
     position: 'absolute',
