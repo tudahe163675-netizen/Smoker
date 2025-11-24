@@ -1,21 +1,21 @@
-import { CreatePostData, Post } from '@/constants/feedData';
 import { FeedApiService } from '@/services/feedApi';
+import { CreatePostData, PostData } from '@/types/postType';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from './useAuth';
 
 export const useFeed = () => {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostData[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const { authState } = useAuth();
 
   const token = authState.token;
-
   const feedApi = new FeedApiService(token!!);
 
   const fetchPosts = useCallback(async (pageNum: number = 1, refresh: boolean = false) => {
@@ -36,7 +36,7 @@ export const useFeed = () => {
           setPosts(prev => [...prev, ...response.data!]);
         }
         setPage(pageNum);
-        setHasMore(response.data.length === 10); // Assuming 10 is the limit
+        setHasMore(response.data.length === 10);
       } else {
         console.warn('Failed to fetch posts:', response.message);
         setError(response.message);
@@ -53,34 +53,41 @@ export const useFeed = () => {
   const createPost = async (postData: CreatePostData): Promise<boolean> => {
     try {
       setUploading(true);
+      setUploadProgress(10); // Bắt đầu
       
       // Bước 1: Upload media nếu có
       let uploadedMediaUrls: string[] = [];
       
       if (postData.files && postData.files.length > 0) {
         console.log('Uploading media files...');
+        setUploadProgress(30);
+        
         const uploadResponse = await feedApi.uploadPostMedia(postData.files);
         
         if (uploadResponse.success && uploadResponse.data) {
           uploadedMediaUrls = uploadResponse.data.map(item => item.secure_url || item.url);
           console.log('Media uploaded successfully:', uploadedMediaUrls);
+          setUploadProgress(60);
         } else {
           Alert.alert('Lỗi', 'Không thể tải lên media');
           setUploading(false);
+          setUploadProgress(0);
           return false;
         }
+      } else {
+        setUploadProgress(60);
       }
 
       // Bước 2: Tạo object cho API theo đúng format
       const createPostPayload: any = {
-        title: postData.content.substring(0, 50) || "Bài viết mới", // Lấy 50 ký tự đầu làm title
+        title: postData.content.substring(0, 50) || "Bài viết mới",
         content: postData.content,
         type: "post" as const,
         entityType: "Account" as const,
-        entityAccountId: authState.currentId, // ID của user hiện tại
+        entityAccountId: authState.currentId,
       };
 
-      // Thêm images nếu có ảnh - phải là OBJECT không phải string
+      // Thêm images nếu có ảnh
       if (uploadedMediaUrls.length > 0 && postData.files?.some(f => f.type === 'image')) {
         const imageUrls = uploadedMediaUrls.filter((_, idx) => postData.files![idx].type === 'image');
         createPostPayload.images = imageUrls.reduce((acc, url, idx) => {
@@ -100,46 +107,73 @@ export const useFeed = () => {
 
       // Bước 3: Tạo bài viết
       console.log('Creating post with payload:', createPostPayload);
+      setUploadProgress(80);
+      
       const response = await feedApi.createPost(createPostPayload);
       
       if (response.success && response.data) {
-        // API trả về { post: {...}, medias: [...] }
-        // Cần merge medias vào post để hiển thị đúng
+        setUploadProgress(100);
+        
+        // ✅ API trả về { post: {...}, medias: [...] }
         const newPost = response.data.post || response.data;
         
-        // Nếu có medias array, convert sang format images/videos
+        // ✅ GÁN MEDIAS ARRAY TRỰC TIẾP
         if (response.data.medias && response.data.medias.length > 0) {
-          const imageMedias = response.data.medias.filter((m: any) => m.type === 'image');
-          const videoMedias = response.data.medias.filter((m: any) => m.type === 'video');
+          newPost.medias = response.data.medias;
+          newPost.mediaIds = response.data.medias; // Đảm bảo mediaIds cũng có
+        } else {
+          // Nếu không có medias từ response, tạo từ payload
+          const tempMedias: any[] = [];
           
-          if (imageMedias.length > 0) {
-            newPost.images = imageMedias.reduce((acc: any, media: any, idx: number) => {
-              acc[`img_${idx + 1}`] = { url: media.url, caption: media.caption || '' };
-              return acc;
-            }, {});
+          if (createPostPayload.images) {
+            Object.entries(createPostPayload.images).forEach(([key, value]: [string, any]) => {
+              tempMedias.push({
+                _id: `temp-${Date.now()}-${key}`,
+                url: value.url,
+                type: 'image',
+                caption: value.caption || '',
+                createdAt: new Date().toISOString(),
+              });
+            });
           }
           
-          if (videoMedias.length > 0) {
-            newPost.videos = videoMedias.reduce((acc: any, media: any, idx: number) => {
-              acc[`video_${idx + 1}`] = { url: media.url, caption: media.caption || '' };
-              return acc;
-            }, {});
+          if (createPostPayload.videos) {
+            Object.entries(createPostPayload.videos).forEach(([key, value]: [string, any]) => {
+              tempMedias.push({
+                _id: `temp-${Date.now()}-${key}`,
+                url: value.url,
+                type: 'video',
+                caption: value.caption || '',
+                createdAt: new Date().toISOString(),
+              });
+            });
           }
+          
+          newPost.medias = tempMedias;
+          newPost.mediaIds = tempMedias;
         }
         
-        // Cập nhật danh sách bài viết ngay lập tức
+        // Đảm bảo có các field cần thiết
+        if (!newPost.likes) newPost.likes = {};
+        if (!newPost.comments) newPost.comments = {};
+        
+        // ✅ Thêm vào đầu danh sách posts
         setPosts(prev => [newPost, ...prev]);
+        
         setUploading(false);
+        setUploadProgress(0);
         return true;
       } else {
         Alert.alert('Lỗi', response.message || 'Không thể tạo bài viết');
         setUploading(false);
+        setUploadProgress(0);
         return false;
       }
     } catch (err) {
       console.error('Error creating post:', err);
       Alert.alert('Lỗi', 'Không thể tạo bài viết');
       setUploading(false);
+      setUploadProgress(0);
       return false;
     }
   };
@@ -184,7 +218,7 @@ export const useFeed = () => {
       }
     } catch (err) {
       console.error('Error liking post:', err);
-      refresh(); // revert
+      refresh();
     }
   }, [authState.currentId, feedApi, refresh]);
 
@@ -205,6 +239,7 @@ export const useFeed = () => {
     error,
     hasMore,
     uploading,
+    uploadProgress, // ✅ Export progress
     fetchPosts,
     createPost,
     likePost,

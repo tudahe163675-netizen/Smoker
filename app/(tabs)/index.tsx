@@ -1,5 +1,4 @@
 import AnimatedHeader from '@/components/ui/AnimatedHeader';
-import { Post } from '@/constants/feedData';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';
 import { PostData } from '@/types/postType';
@@ -44,6 +43,24 @@ const PostInputBox = ({ openModal, pickMedia }: { openModal: () => void; pickMed
   </View>
 );
 
+// ✅ Simple progress bar như Facebook - chỉ có thanh progress thôi!
+const UploadingProgressBar = ({ progress }: { progress: number }) => (
+  <View style={styles.uploadingContainer}>
+    <View style={styles.uploadingContent}>
+      <ActivityIndicator size="small" color="#2563eb" style={{ marginRight: 8 }} />
+      <Text style={styles.uploadingLabel}>Đang đăng bài viết...</Text>
+    </View>
+    <View style={styles.simpleProgressBar}>
+      <Animated.View 
+        style={[
+          styles.simpleProgressFill, 
+          { width: `${progress}%` }
+        ]} 
+      />
+    </View>
+  </View>
+);
+
 export default function HomeScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
@@ -60,6 +77,7 @@ export default function HomeScreen() {
     refreshing,
     error,
     uploading,
+    uploadProgress,
     createPost,
     likePost,
     refresh,
@@ -70,11 +88,11 @@ export default function HomeScreen() {
   const pickMedia = useCallback(async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All, // Cho phép cả ảnh và video
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
         allowsMultipleSelection: true,
         quality: 0.8,
         selectionLimit: 5,
-        videoMaxDuration: 60, // Giới hạn video 60 giây
+        videoMaxDuration: 60,
       });
 
       if (!result.canceled) {
@@ -83,7 +101,6 @@ export default function HomeScreen() {
           type: (asset.type === 'video' ? 'video' : 'image') as 'image' | 'video',
         }));
         
-        // Kiểm tra số lượng
         if (media.length > 5) {
           Alert.alert('Thông báo', 'Bạn chỉ có thể chọn tối đa 5 file');
           return;
@@ -125,12 +142,12 @@ export default function HomeScreen() {
       return;
     }
 
+    closeModal();
+
     const success = await createPost({
       content: postText,
       files: selectedMedia,
     });
-
-    closeModal();
 
     if (success) {
       Alert.alert('Thành công', 'Bài viết đã được đăng!');
@@ -141,7 +158,7 @@ export default function HomeScreen() {
     likePost(postId);
   }, [likePost]);
 
-  const handleShare = async (post: Post) => {
+  const handleShare = async (post: PostData) => {
     if (!post) return;
 
     try {
@@ -152,13 +169,7 @@ export default function HomeScreen() {
       });
 
       if (result.action === Share.sharedAction) {
-        if (result.activityType) {
-          console.log('Shared with activity type:', result.activityType);
-        } else {
-          Alert.alert('Thành công', 'Đã chia sẻ bài viết');
-        }
-      } else if (result.action === Share.dismissedAction) {
-        console.log('Share dismissed');
+        Alert.alert('Thành công', 'Đã chia sẻ bài viết');
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể chia sẻ bài viết');
@@ -233,19 +244,9 @@ export default function HomeScreen() {
       like => like.accountId === currentUserId
     );
 
-    // Lấy media từ medias hoặc mediaIds
-    // Ưu tiên medias, fallback về mediaIds nếu không có
-    let mediaItems = item.mediaIds || [];    
-    
-    // Nếu không có medias nhưng có mediaIds, dùng mediaIds
-    if (mediaItems.length === 0 && item.mediaIds && item.mediaIds.length > 0) {
-      mediaItems = item.mediaIds;
-    }
-    
-    // Phân loại media thành images và videos
+    let mediaItems = item.medias || item.mediaIds || [];    
     const imageMedias = mediaItems.filter(m => m.type === 'image');
     const videoMedias = mediaItems.filter(m => m.type === 'video');
-    
     const hasMedia = mediaItems.length > 0;
 
     return (
@@ -279,7 +280,6 @@ export default function HomeScreen() {
               onScroll={(event) => handleImageScroll(event, item._id)}
               scrollEventThrottle={16}
             >
-              {/* Hiển thị tất cả ảnh */}
               {imageMedias.map((media, index) => (
                 <TouchableOpacity
                   key={`image-${media._id || media.id || index}`}
@@ -290,7 +290,6 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))}
 
-              {/* Hiển thị tất cả video */}
               {videoMedias.map((media, index) => (
                 <TouchableOpacity
                   key={`video-${media._id || media.id || index}`}
@@ -302,7 +301,6 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
 
-            {/* Counter cho nhiều media */}
             {mediaItems.length > 1 && (
               <View style={styles.imageCounter}>
                 <Text style={styles.imageCounterText}>
@@ -375,7 +373,16 @@ export default function HomeScreen() {
         keyExtractor={(item) => item._id}
         style={[styles.container, { paddingTop: 40 }]}
         contentContainerStyle={{ paddingBottom: 40 }}
-        ListHeaderComponent={<PostInputBox openModal={openModal} pickMedia={pickMedia} />}
+        ListHeaderComponent={
+          <>
+            <PostInputBox openModal={openModal} pickMedia={pickMedia} />
+            
+            {/* ✅ Simple progress bar - chỉ có thanh thôi! */}
+            {uploading && (
+              <UploadingProgressBar progress={uploadProgress} />
+            )}
+          </>
+        }
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -404,7 +411,6 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
       />
 
-      {/* Modal tạo bài viết */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -413,7 +419,6 @@ export default function HomeScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {/* Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Tạo bài viết</Text>
               <TouchableOpacity onPress={closeModal} style={styles.closeButton}>
@@ -421,7 +426,6 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Content */}
             <ScrollView
               style={styles.modalBody}
               showsVerticalScrollIndicator={false}
@@ -482,20 +486,15 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </ScrollView>
 
-            {/* Submit Button */}
             <TouchableOpacity
               style={[
                 styles.submitBtn,
-                ((!postText.trim() && selectedMedia.length === 0) || uploading) && styles.submitBtnDisabled
+                (!postText.trim() && selectedMedia.length === 0) && styles.submitBtnDisabled
               ]}
               onPress={submitPost}
-              disabled={(!postText.trim() && selectedMedia.length === 0) || uploading}
+              disabled={!postText.trim() && selectedMedia.length === 0}
             >
-              {uploading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.submitBtnText}>Đăng bài</Text>
-              )}
+              <Text style={styles.submitBtnText}>Đăng bài</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -630,6 +629,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     fontWeight: '500',
+  },
+
+  // ✅ Simple progress bar (giống Facebook)
+  uploadingContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: 8,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  uploadingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  uploadingLabel: {
+    fontSize: 15,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  simpleProgressBar: {
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  simpleProgressFill: {
+    height: '100%',
+    backgroundColor: '#2563eb',
+    borderRadius: 2,
   },
 
   // Modal Styles
