@@ -67,7 +67,7 @@ export class FeedApiService {
   }
 
   async getFeedPosts(page: number = 1, limit: number = 10): Promise<ApiResponse<Post[]>> {
-    return this.makeRequest<Post[]>(`/posts?page=${page}&limit=${limit}`);
+    return this.makeRequest<Post[]>(`/posts?page=${page}&limit=${limit}&includeMedias=true`);
   }
 
   async uploadPostMedia(files: { uri: string; type: 'image' | 'video' }[]): Promise<ApiResponse<Array<{ url: string; secure_url: string; public_id: string; format: string; type: string }>>> {

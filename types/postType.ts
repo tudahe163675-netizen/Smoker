@@ -23,7 +23,27 @@ export interface Comment {
   createdAt: string;
 }
 
-export interface Post {
+export interface MediaItem {
+  _id: string;
+  id?: string;
+  postId?: string;
+  accountId?: string;
+  entityAccountId?: string;
+  entityId?: string;
+  entityType?: string;
+  url: string;
+  type: 'image' | 'video';
+  caption: string;
+  comments?: Record<string, any>;
+  likes?: Record<string, any>;
+  shares?: number;
+  createdAt: string;
+  updatedAt?: string;
+  uploadDate?: string;
+  __v?: number;
+}
+
+export interface PostData {
   _id: string;
   accountId: string;
   entityAccountId: string;
@@ -38,7 +58,8 @@ export interface Post {
   expiredAt: string | null;
   musicId: string | null;
   songId: string | null;
-  mediaIds: string[];
+  mediaIds: MediaItem[]; // Array of media objects, không phải string[]
+  medias?: MediaItem[]; // Medias array từ API
   trendingScore: number;
   views: number;
   shares: number;

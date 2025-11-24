@@ -2,6 +2,7 @@ import AnimatedHeader from '@/components/ui/AnimatedHeader';
 import { Post } from '@/constants/feedData';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';
+import { PostData } from '@/types/postType';
 import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,10 +29,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const PostInputBox = ({ openModal, pickMedia, avatar }: { openModal: () => void; pickMedia: () => void, avatar: string }) => (
+const PostInputBox = ({ openModal, pickMedia }: { openModal: () => void; pickMedia: () => void }) => (
   <View style={styles.postBox}>
     <Image
-      source={{ uri: avatar ?? 'https://i.pravatar.cc/100?img=10' }}
+      source={{ uri: 'https://i.pravatar.cc/100?img=10' }}
       style={styles.avatar}
     />
     <TouchableOpacity style={styles.postInput} onPress={openModal}>
@@ -52,7 +53,6 @@ export default function HomeScreen() {
   const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
   const { authState } = useAuth();
   const currentUserId = authState.currentId;
-  const authorAvatar = authState.avatar;
 
   const {
     posts,
@@ -204,7 +204,7 @@ export default function HomeScreen() {
     }));
   };
 
-  const renderMediaItem = (mediaUrl: string, isVideo: boolean = false) => {
+  const renderMediaItem = (mediaUrl: string, isVideo: boolean = false) => {    
     if (isVideo) {
       return (
         <Video
@@ -226,28 +226,27 @@ export default function HomeScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: Post }) => {
+  const renderItem = ({ item }: { item: PostData }) => {
     const likeCount = Object.keys(item.likes || {}).length;
     const commentCount = Object.keys(item.comments || {}).length;
     const isLiked = !!currentUserId && !!Object.values(item.likes || {}).find(
       like => like.accountId === currentUserId
     );
 
-    // Xử lý media (images hoặc videos)
-    // Images có thể là string hoặc object
-    let imageUrls: string[] = [];
-    if (item.images) {
-      if (typeof item.images === 'string') {
-        // Nếu là string, split bởi dấu phẩy
-        imageUrls = item.images.split(',').filter(url => url.trim());
-      } else if (typeof item.images === 'object') {
-        // Nếu là object, lấy tất cả URLs
-        imageUrls = Object.values(item.images).map(img => img.url);
-      }
+    // Lấy media từ medias hoặc mediaIds
+    // Ưu tiên medias, fallback về mediaIds nếu không có
+    let mediaItems = item.mediaIds || [];    
+    
+    // Nếu không có medias nhưng có mediaIds, dùng mediaIds
+    if (mediaItems.length === 0 && item.mediaIds && item.mediaIds.length > 0) {
+      mediaItems = item.mediaIds;
     }
-
-    const videoUrls = item.videos ? Object.values(item.videos).map(v => v.url) : [];
-    const hasMedia = imageUrls.length > 0 || videoUrls.length > 0;
+    
+    // Phân loại media thành images và videos
+    const imageMedias = mediaItems.filter(m => m.type === 'image');
+    const videoMedias = mediaItems.filter(m => m.type === 'video');
+    
+    const hasMedia = mediaItems.length > 0;
 
     return (
       <View style={styles.card}>
@@ -281,33 +280,33 @@ export default function HomeScreen() {
               scrollEventThrottle={16}
             >
               {/* Hiển thị tất cả ảnh */}
-              {imageUrls.map((url, index) => (
+              {imageMedias.map((media, index) => (
                 <TouchableOpacity
-                  key={`image-${index}`}
+                  key={`image-${media._id || media.id || index}`}
                   style={styles.imageContainer}
                   onPress={() => handleComment(item._id)}
                 >
-                  {renderMediaItem(url, false)}
+                  {renderMediaItem(media.url, false)}
                 </TouchableOpacity>
               ))}
 
               {/* Hiển thị tất cả video */}
-              {videoUrls.map((url, index) => (
+              {videoMedias.map((media, index) => (
                 <TouchableOpacity
-                  key={`video-${index}`}
+                  key={`video-${media._id || media.id || index}`}
                   style={styles.imageContainer}
                   onPress={() => handleComment(item._id)}
                 >
-                  {renderMediaItem(url, true)}
+                  {renderMediaItem(media.url, true)}
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             {/* Counter cho nhiều media */}
-            {(imageUrls.length + videoUrls.length) > 1 && (
+            {mediaItems.length > 1 && (
               <View style={styles.imageCounter}>
                 <Text style={styles.imageCounterText}>
-                  {(currentImageIndexes[item._id] || 0) + 1}/{imageUrls.length + videoUrls.length}
+                  {(currentImageIndexes[item._id] || 0) + 1}/{mediaItems.length}
                 </Text>
               </View>
             )}
@@ -376,7 +375,7 @@ export default function HomeScreen() {
         keyExtractor={(item) => item._id}
         style={[styles.container, { paddingTop: 40 }]}
         contentContainerStyle={{ paddingBottom: 40 }}
-        ListHeaderComponent={<PostInputBox openModal={openModal} pickMedia={pickMedia} avatar={authorAvatar}/>}
+        ListHeaderComponent={<PostInputBox openModal={openModal} pickMedia={pickMedia} />}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
