@@ -1,399 +1,636 @@
-import ComboCard from '@/components/bar/ComboCard';
-import { bannerData, categories, ComboItem, combosData } from '@/constants/barData';
+import { useAuth } from '@/hooks/useAuth';
+import { BarApiService } from '@/services/barApi';
+import { BarItem } from '@/types/barType';
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   Dimensions,
   FlatList,
+  Image,
   RefreshControl,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get("window");
 
-export default function FeedScreen() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [refreshing, setRefreshing] = useState(false);
-  const carouselRef = useRef<ScrollView>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
+// ============================
+// 🎨 SKELETON LOADER COMPONENT
+// ============================
+const SkeletonCard = () => {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
 
-  const handleScrollEnd = (e: any) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / width);
-    setActiveIndex(index);
-  };
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 2000);
-  };
-
-  const getFilteredCombos = () => {
-    if (selectedCategory === 'all') {
-      return combosData;
-    }
-    return combosData.filter(combo => combo.category === selectedCategory);
-  };
-
-  const handleComboPress = (combo: ComboItem) => {
-    // Navigate to booking screen with selected combo
-    router.push({
-      pathname: '/booking',
-      params: { selectedCombo: combo.id }
-    });
-  };
-
-  const handleBookingPress = () => {
-    router.push('/booking');
-  };
-
-  const BannerItem = ({ item, index }: any) => (
-    <View style={styles.bannerSlide}>
-      <LinearGradient
-        colors={['#1f2937', '#3b82f6']}
-        style={styles.bannerBackground}
-      >
-        <View style={styles.bannerContent}>
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{item.discount}</Text>
-          </View>
-          <Text style={styles.bannerTitle}>{item.title}</Text>
-          <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>
-        </View>
-      </LinearGradient>
-    </View>
-  );
-
-  const CategoryTab = ({ item, isSelected, onPress }: any) => (
-    <TouchableOpacity
-      style={[styles.categoryTab, isSelected && styles.activeCategoryTab]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Ionicons 
-        name={item.icon} 
-        size={18} 
-        color={isSelected ? '#fff' : '#6b7280'} 
-      />
-      <Text style={[styles.categoryText, isSelected && styles.activeCategoryText]}>
-        {item.name}
-      </Text>
-    </TouchableOpacity>
-  );
-
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, -100],
-    extrapolate: 'clamp',
+  const opacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
   });
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
+    <Animated.View style={[styles.barCard, { opacity }]}>
+      <View style={[styles.barImage, styles.skeleton]} />
+      <View style={styles.barInfo}>
+        <View style={[styles.skeletonText, { width: '70%', height: 20 }]} />
+        <View style={[styles.skeletonText, { width: '50%', height: 14, marginTop: 8 }]} />
+        <View style={[styles.skeletonText, { width: '40%', height: 14, marginTop: 8 }]} />
+      </View>
+    </Animated.View>
+  );
+};
 
-      {/* Banner Carousel */}
-        <View style={styles.carouselContainer}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            ref={carouselRef}
-            onMomentumScrollEnd={handleScrollEnd}
-          >
-            {bannerData.map((item, index) => (
-              <BannerItem key={item.id} item={item} index={index} />
-            ))}
-          </ScrollView>
+// ============================
+// 🎭 EMPTY STATE COMPONENT
+// ============================
+const EmptyState = () => (
+  <View style={styles.emptyContainer}>
+    <Ionicons name="beer-outline" size={80} color="#cbd5e1" />
+    <Text style={styles.emptyTitle}>Không tìm thấy quán bar</Text>
+    <Text style={styles.emptySubtitle}>Hãy thử lại sau nhé!</Text>
+  </View>
+);
 
-          {/* Pagination Dots */}
-          <View style={styles.pagination}>
-            {bannerData.map((_, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.dot, index === activeIndex && styles.activeDot]}
-                onPress={() => {
-                  carouselRef.current?.scrollTo({ x: index * width, animated: true });
-                  setActiveIndex(index);
-                }}
-              />
-            ))}
-          </View>
-        </View>
+// ============================
+// 🎨 ANIMATED BAR CARD COMPONENT
+// ============================
+interface BarCardProps {
+  item: BarItem;
+  index: number;
+  onPress: (bar: BarItem) => void;
+}
 
-      <Animated.ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-        scrollEventThrottle={16}
-      >
+const BarCard: React.FC<BarCardProps> = React.memo(({ item, index, onPress }) => {
+  const scale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: 1,
+      tension: 50,
+      friction: 7,
+      delay: index * 100,
+      useNativeDriver: true,
+    }).start();
+  }, [index]);
+
+  const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+
+  // ============================
+  // 📊 DATA HELPERS
+  // ============================
+  const hasRating = item.averageRating !== null && item.reviewCount > 0;
+  const displayAddress = item.address || item.addressData?.fullAddress || 'Chưa cập nhật địa chỉ';
+  const hasPhone = !!item.phoneNumber;
+
+  return (
+    <AnimatedTouchable
+      style={[styles.barCard, { transform: [{ scale }] }]}
+      activeOpacity={0.9}
+      onPress={() => onPress(item)}
+    >
+      <View style={styles.imageContainer}>
+        <Image
+          source={{ uri: item.background || item.avatar }}
+          style={styles.barImage}
+          resizeMode="cover"
+          // defaultSource={require('@/assets/images/default-bar.png')} // Add default image
+        />
         
+        {/* Gradient Overlay */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.4)']}
+          style={styles.imageGradient}
+        />
 
-        {/* Category Tabs */}
-        <View style={styles.categoriesContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesList}
-          >
-            {categories.map((category) => (
-              <CategoryTab
-                key={category.id}
-                item={category}
-                isSelected={selectedCategory === category.id}
-                onPress={() => setSelectedCategory(category.id)}
-              />
-            ))}
-          </ScrollView>
+        {/* Role Badge - hiển thị nếu có */}
+        {item.role && (
+          <View style={styles.roleBadge}>
+            <Ionicons name="checkmark-circle" size={12} color="#fff" style={{ marginRight: 4 }} />
+            <Text style={styles.roleText}>{item.role}</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.barInfo}>
+        {/* Bar Name */}
+        <Text style={styles.barName} numberOfLines={1}>
+          {item.barName}
+        </Text>
+
+        {/* Address */}
+        <View style={styles.barMeta}>
+          <View style={styles.metaItem}>
+            <Ionicons name="location" size={14} color="#64748b" />
+            <Text style={styles.barAddress} numberOfLines={2}>
+              {displayAddress}
+            </Text>
+          </View>
         </View>
 
-        {/* Combos Section */}
-        <View style={styles.combosSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Combo Đặc Biệt {selectedCategory !== 'all' && `- ${categories.find(c => c.id === selectedCategory)?.name}`}
-            </Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>Xem tất cả</Text>
-            </TouchableOpacity>
+        {/* Phone Number - chỉ hiển thị nếu có */}
+        {hasPhone && (
+          <View style={styles.phoneContainer}>
+            <Ionicons name="call-outline" size={14} color="#64748b" />
+            <Text style={styles.phoneText}>{item.phoneNumber}</Text>
           </View>
+        )}
 
+        <View style={styles.divider} />
+
+        <View style={styles.barFooter}>
+          {/* Rating - chỉ hiển thị nếu có đánh giá */}
+          {hasRating ? (
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={16} color="#fbbf24" />
+              <Text style={styles.ratingText}>{item.averageRating?.toFixed(1)}</Text>
+              <Text style={styles.ratingSubtext}>({item.reviewCount})</Text>
+            </View>
+          ) : (
+            <View style={styles.noRatingContainer}>
+              <Ionicons name="star-outline" size={16} color="#cbd5e1" />
+              <Text style={styles.noRatingText}>Chưa có đánh giá</Text>
+            </View>
+          )}
+
+          {/* Email - hiển thị icon */}
+          {item.email && (
+            <View style={styles.emailContainer}>
+              <Ionicons name="mail-outline" size={14} color="#64748b" />
+            </View>
+          )}
+
+          {/* Created Date */}
+          <View style={styles.dateContainer}>
+            <Ionicons name="time-outline" size={14} color="#94a3b8" />
+            <Text style={styles.dateText}>
+              {new Date(item.createdAt).toLocaleDateString('vi-VN')}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </AnimatedTouchable>
+  );
+});
+
+export default function FeedScreen() {
+  const { authState } = useAuth();
+  const [bars, setBars] = useState<BarItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const barApi = new BarApiService(authState.token!!);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // ============================
+  // 📡 FETCH BARS
+  // ============================
+  const fetchBars = useCallback(async (pageNum = 1, isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else if (pageNum === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const res = await barApi.getBars(pageNum, 10);
+console.log(res);
+
+      if ( res.data) {
+        const newBars = res.data;
+        
+        if (pageNum === 1 || isRefresh) {
+          setBars(newBars);
+        } else {
+          setBars(prev => [...prev, ...newBars]);
+        }
+
+        setPage(pageNum);
+        setHasMore(newBars.length === 10);
+      }
+    } catch (err) {
+      console.error("ERROR FETCH BARS:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  }, []);
+
+  // ============================
+  // 🔄 HANDLERS
+  // ============================
+  const onLoadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchBars(page + 1);
+    }
+  }, [loadingMore, hasMore, page, fetchBars]);
+
+  const onRefresh = useCallback(() => {
+    fetchBars(1, true);
+  }, [fetchBars]);
+
+  const handleBarPress = useCallback((bar: BarItem) => {
+    router.push({
+      pathname: "/barDetail",
+      params: { id: bar.barPageId }
+    });
+  }, []);
+
+  // ============================
+  // 🎬 INITIAL LOAD
+  // ============================
+  useEffect(() => {
+    fetchBars(1, false);
+  }, []);
+
+  // ============================
+  // 🎨 RENDER ITEM
+  // ============================
+  const renderBarItem = useCallback(({ item, index }: { item: BarItem; index: number }) => (
+    <BarCard item={item} index={index} onPress={handleBarPress} />
+  ), [handleBarPress]);
+
+  // ============================
+  // 🎨 ANIMATED HEADER
+  // ============================
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.95],
+    extrapolate: 'clamp',
+  });
+
+  const headerScale = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.98],
+    extrapolate: 'clamp',
+  });
+
+  // ============================
+  // 🎬 MAIN RENDER
+  // ============================
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+
+      {/* ANIMATED HEADER */}
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: headerOpacity,
+            transform: [{ scale: headerScale }]
+          }
+        ]}
+      >
+        <View>
+          <Text style={styles.headerTitle}>Khám phá Bar</Text>
+          <Text style={styles.headerSubtitle}>
+            {bars.length > 0 ? `${bars.length} quán bar` : 'Đang tải...'}
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.searchButton}
+          onPress={() => router.push("/booking")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="search" size={22} color="#fff" />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* LOADING STATE */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
           <FlatList
-            data={getFilteredCombos()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.combosList}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <ComboCard item={item} onPress={handleComboPress} />
-            )}
+            data={[1, 2, 3, 4]}
+            renderItem={() => <SkeletonCard />}
+            keyExtractor={(item) => item.toString()}
+            contentContainerStyle={{ padding: 20 }}
+            showsVerticalScrollIndicator={false}
           />
         </View>
-
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.actionCard} onPress={handleBookingPress}>
-            <LinearGradient colors={['#3b82f6', '#1d4ed8']} style={styles.actionGradient}>
-              <Ionicons name="calendar-outline" size={28} color="#fff" />
-              <Text style={styles.actionText}>Đặt bàn</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <LinearGradient colors={['#10b981', '#059669']} style={styles.actionGradient}>
-              <Ionicons name="gift-outline" size={28} color="#fff" />
-              <Text style={styles.actionText}>Ưu đãi</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionCard}>
-            <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.actionGradient}>
-              <Ionicons name="location-outline" size={28} color="#fff" />
-              <Text style={styles.actionText}>Chi nhánh</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </Animated.ScrollView>
-
-      {/* Floating Book Button */}
-      <TouchableOpacity style={styles.floatingButton} activeOpacity={0.8} onPress={handleBookingPress}>
-        <LinearGradient colors={['#ef4444', '#dc2626']} style={styles.floatingGradient}>
-          <Ionicons name="calendar" size={20} color="#fff" />
-          <Text style={styles.floatingText}>Đặt bàn ngay</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </View>
+      ) : bars.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <Animated.FlatList
+          data={bars}
+          renderItem={renderBarItem}
+          keyExtractor={(item) => item.barPageId}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#3b82f6"
+              colors={['#3b82f6']}
+            />
+          }
+          onEndReached={onLoadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoading}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={styles.loadingText}>Đang tải thêm...</Text>
+              </View>
+            ) : null
+          }
+        />
+      )}
+    </SafeAreaView>
   );
 }
 
+// ============================
+// 🎨 STYLES
+// ============================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f1f5f9",
   },
-  
-  // Banner Styles
-  carouselContainer: {
-    height: 200,
+
+  // ===== HEADER =====
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
   },
-  bannerSlide: {
-    width,
-    height: 200,
-    position: 'relative',
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    color: '#fff',
+    letterSpacing: 0.5,
   },
-  bannerBackground: {
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // ===== LOADING =====
+  loadingContainer: {
+    flex: 1,
+  },
+
+  // ===== EMPTY STATE =====
+  emptyContainer: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    paddingHorizontal: 40,
   },
-  bannerContent: {
-    alignItems: 'flex-start',
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 16,
   },
-  discountBadge: {
-    backgroundColor: '#ef4444',
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+
+  // ===== LIST =====
+  listContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+
+  // ===== BAR CARD =====
+  barCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 4,
+  },
+
+  imageContainer: {
+    position: 'relative',
+  },
+  barImage: {
+    width: "100%",
+    height: 200,
+    backgroundColor: '#e2e8f0',
+  },
+  imageGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+  },
+
+  roleBadge: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    marginBottom: 12,
-  },
-  discountText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  bannerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  bannerSubtitle: {
-    fontSize: 16,
-    color: '#e5e7eb',
-    marginTop: 4,
-  },
-
-  // Pagination
-  pagination: {
-    position: 'absolute',
-    bottom: 15,
-    alignSelf: 'center',
-    flexDirection: 'row',
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    marginHorizontal: 4,
-  },
-  activeDot: {
-    backgroundColor: '#fff',
-    width: 20,
-  },
-
-  // Categories
-  categoriesContainer: {
-    marginVertical: 20,
-  },
-  categoriesList: {
-    paddingHorizontal: 20,
-    paddingRight: 40,
-  },
-  categoryTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginRight: 12,
-    backgroundColor: '#fff',
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    shadowColor: '#000',
+    backgroundColor: '#10b981',
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
-  activeCategoryTab: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginLeft: 6,
-  },
-  activeCategoryText: {
-    color: '#fff',
-  },
-
-  // Combos Section
-  combosSection: {
-    marginBottom: 30,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    flex: 1,
-  },
-  seeAll: {
-    fontSize: 14,
-    color: '#3b82f6',
-    fontWeight: '600',
-  },
-  combosList: {
-    paddingHorizontal: 20,
-  },
-
-  // Quick Actions
-  quickActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  actionCard: {
-    flex: 1,
-    marginHorizontal: 5,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  actionGradient: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  actionText: {
-    color: '#fff',
+  roleText: {
+    color: "#fff",
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 6,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
 
-  // Floating Button
-  floatingButton: {
-    position: 'absolute',
-    bottom: 30,
-    alignSelf: 'center',
-    borderRadius: 25,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+  // ===== BAR INFO =====
+  barInfo: {
+    padding: 16,
   },
-  floatingGradient: {
+  barName: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#0f172a",
+    marginBottom: 10,
+    letterSpacing: 0.3,
+  },
+
+  barMeta: {
+    marginBottom: 8,
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  barAddress: {
+    fontSize: 14,
+    color: "#64748b",
+    marginLeft: 6,
+    flex: 1,
+    lineHeight: 20,
+  },
+
+  phoneContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    marginBottom: 8,
   },
-  floatingText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
+  phoneText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginLeft: 6,
+    fontWeight: '500',
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 12,
+  },
+
+  barFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  // Rating có review
+  ratingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  ratingText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+  ratingSubtext: {
+    fontSize: 12,
+    color: "#64748b",
+    marginLeft: 3,
+  },
+
+  // No rating
+  noRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+  },
+  noRatingText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginLeft: 4,
+  },
+
+  emailContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  dateText: {
+    fontSize: 11,
+    color: "#94a3b8",
+    marginLeft: 4,
+  },
+
+  // ===== SKELETON =====
+  skeleton: {
+    backgroundColor: '#e2e8f0',
+  },
+  skeletonText: {
+    backgroundColor: '#e2e8f0',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+
+  // ===== FOOTER LOADING =====
+  footerLoading: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
   },
 });
