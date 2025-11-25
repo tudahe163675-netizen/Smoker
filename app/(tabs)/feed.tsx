@@ -265,33 +265,35 @@ export default function FeedScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
 
-      {/* ANIMATED HEADER */}
-      <Animated.View 
-        style={[
-          styles.header,
-          {
-            opacity: headerOpacity,
-            transform: [{ scale: headerScale }]
-          }
-        ]}
-      >
-        <View>
-          <Text style={styles.headerTitle}>Khám phá Bar</Text>
-          <Text style={styles.headerSubtitle}>
-            {bars.length > 0 ? `${bars.length} quán bar` : 'Đang tải...'}
-          </Text>
-        </View>
-        <TouchableOpacity 
-          style={styles.searchButton}
-          onPress={() => router.push("/booking")}
-          activeOpacity={0.7}
+      {/* ANIMATED HEADER - Full screen từ trên cùng */}
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#0f172a' }}>
+        <Animated.View 
+          style={[
+            styles.header,
+            {
+              opacity: headerOpacity,
+              transform: [{ scale: headerScale }]
+            }
+          ]}
         >
-          <Ionicons name="search" size={22} color="#fff" />
-        </TouchableOpacity>
-      </Animated.View>
+          <View>
+            <Text style={styles.headerTitle}>Khám phá Bar</Text>
+            <Text style={styles.headerSubtitle}>
+              {bars.length > 0 ? `${bars.length} quán bar` : 'Đang tải...'}
+            </Text>
+          </View>
+          {/* <TouchableOpacity 
+            style={styles.searchButton}
+            onPress={() => router.push("/booking")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="search" size={22} color="#fff" />
+          </TouchableOpacity> */}
+        </Animated.View>
+      </SafeAreaView>
 
       {/* LOADING STATE */}
       {loading ? (
@@ -338,7 +340,7 @@ export default function FeedScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
