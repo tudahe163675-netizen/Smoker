@@ -5,8 +5,8 @@ import {
   BarItem,
   ComboItem,
 } from "@/types/barType";
-import { mapBarDetail } from "@/utils/mapper";
-import { useCallback, useEffect, useState } from "react";
+import { mapBarDetail, mapComboList } from "@/utils/mapper";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./useAuth";
 
 export const useBar = () => {
@@ -26,7 +26,12 @@ export const useBar = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const { authState } = useAuth();
-  const barApi = new BarApiService(authState.token!);
+
+  // Fix: Use useMemo để tránh tạo instance mới mỗi lần render
+  const barApi = useMemo(
+    () => new BarApiService(authState.token!),
+    [authState.token]
+  );
 
   const fetchBars = useCallback(
     async (pageNum: number = 1, refresh = false) => {
@@ -92,9 +97,12 @@ export const useBar = () => {
 
       try {
         const response = await barApi.getBarCombos(barId);
+        console.log(response);
 
-        if (response.success && response.data) {
-          setCombos(response.data.data);
+
+        if (response.data) {
+          const mapped = mapComboList(response.data);
+          setCombos(mapped);
         } else {
           setError(response.message || "Không thể tải combos");
         }

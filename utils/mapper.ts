@@ -1,7 +1,8 @@
 import {
-    BarDetail,
-    BarDetailApiResponse,
-    BarItem
+  BarDetail,
+  BarDetailApiResponse,
+  BarItem,
+  ComboItem
 } from "@/types/barType";
 
 export const mapBarDetail = (api: BarDetailApiResponse): BarDetail => ({
@@ -36,3 +37,16 @@ export const mapBarItem = (api: any): BarItem => ({
   entityAccountId: api.EntityAccountId,
   createdAt: api.created_at,
 });
+
+export const mapComboItem = (api: any): ComboItem => ({
+  comboId: api.ComboId,
+  comboName: api.ComboName,
+  barId: api.BarId,
+  tableApplyId: api.TableApplyId,
+  voucherApplyId: api.VoucherApplyId,
+  price: api.Price,
+});
+
+export const mapComboList = (list: any[]): ComboItem[] =>
+  list.map((item) => mapComboItem(item));
+

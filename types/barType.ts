@@ -70,6 +70,16 @@ export interface BarDetailApiResponseWrapper {
   data: BarDetailApiResponse;
 }
 
+export interface ComboItemApiResponse {
+  ComboId: string;
+  ComboName: string;
+  BarId: string;
+  TableApplyId: string | null;
+  VoucherApplyId: string | null;
+  Price: number;
+}
+
+
 export interface ComboItem {
   comboId: string;
   comboName: string;

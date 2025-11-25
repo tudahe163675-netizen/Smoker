@@ -21,6 +21,142 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
+const ComboCard: React.FC<{ item: ComboItem; index: number }> = ({ item, index }) => {
+  const animValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(animValue, {
+      toValue: 1,
+      delay: index * 100,
+      tension: 50,
+      friction: 7,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.comboCard,
+        {
+          opacity: animValue,
+          transform: [
+            {
+              translateY: animValue.interpolate({
+                inputRange: [0, 1],
+                outputRange: [20, 0],
+              }),
+            },
+            {
+              scale: animValue,
+            },
+          ],
+        },
+      ]}
+    >
+      <View style={styles.comboHeader}>
+        <View style={styles.comboIconContainer}>
+          <Ionicons name="beer-outline" size={24} color="#3b82f6" />
+        </View>
+      </View>
+      <Text style={styles.comboName} numberOfLines={2}>
+        {item.comboName}
+      </Text>
+      <Text style={styles.comboPrice}>{item.price.toLocaleString()}₫</Text>
+      {item.voucherApplyId && (
+        <View style={styles.voucherBadge}>
+          <Ionicons name="pricetag" size={12} color="#fff" />
+          <Text style={styles.voucherText}>Voucher</Text>
+        </View>
+      )}
+    </Animated.View>
+  );
+};
+
+// Skeleton Loading Component
+const SkeletonCard = () => {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const opacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.container}>
+      {/* Skeleton Header */}
+      <Animated.View style={[styles.skeletonHeader, { opacity }]} />
+      
+      {/* Skeleton Info Card */}
+      <View style={styles.skeletonInfoCard}>
+        <Animated.View
+          style={[styles.skeletonText, { width: "70%", height: 28, opacity }]}
+        />
+        <Animated.View
+          style={[
+            styles.skeletonText,
+            { width: "90%", height: 16, marginTop: 16, opacity },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.skeletonText,
+            { width: "60%", height: 16, marginTop: 8, opacity },
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.skeletonText,
+            { width: "50%", height: 16, marginTop: 8, opacity },
+          ]}
+        />
+
+        {/* Skeleton Stats */}
+        <View style={styles.skeletonStatsContainer}>
+          {[1, 2, 3].map((i) => (
+            <Animated.View
+              key={i}
+              style={[styles.skeletonStat, { opacity }]}
+            />
+          ))}
+        </View>
+      </View>
+
+      {/* Skeleton Combos */}
+      <View style={styles.section}>
+        <Animated.View
+          style={[styles.skeletonText, { width: 150, height: 24, opacity }]}
+        />
+        <View style={styles.skeletonComboList}>
+          {[1, 2].map((i) => (
+            <Animated.View
+              key={i}
+              style={[styles.skeletonCombo, { opacity }]}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+};
+
 const BarDetail: React.FC<any> = ({}) => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -120,65 +256,12 @@ const BarDetail: React.FC<any> = ({}) => {
     }
   };
 
-  const renderComboItem = ({ item, index }: { item: ComboItem; index: number }) => {
-    const animValue = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.spring(animValue, {
-        toValue: 1,
-        delay: index * 100,
-        tension: 50,
-        friction: 7,
-        useNativeDriver: true,
-      }).start();
-    }, []);
-
-    return (
-      <Animated.View
-        style={[
-          styles.comboCard,
-          {
-            opacity: animValue,
-            transform: [
-              {
-                translateY: animValue.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-              {
-                scale: animValue,
-              },
-            ],
-          },
-        ]}
-      >
-        <View style={styles.comboHeader}>
-          <View style={styles.comboIconContainer}>
-            <Ionicons name="beer-outline" size={24} color="#3b82f6" />
-          </View>
-        </View>
-        <Text style={styles.comboName} numberOfLines={2}>
-          {item.comboName}
-        </Text>
-        <Text style={styles.comboPrice}>{item.price.toLocaleString()}₫</Text>
-        {item.voucherApplyId && (
-          <View style={styles.voucherBadge}>
-            <Ionicons name="pricetag" size={12} color="#fff" />
-            <Text style={styles.voucherText}>Voucher</Text>
-          </View>
-        )}
-      </Animated.View>
-    );
-  };
+  const renderComboItem = ({ item, index }: { item: ComboItem; index: number }) => (
+    <ComboCard item={item} index={index} />
+  );
 
   if (loadingDetail) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.loadingText}>Đang tải chi tiết quán...</Text>
-      </View>
-    );
+    return <SkeletonCard />;
   }
 
   if (!barDetail) {
@@ -650,5 +733,52 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     letterSpacing: 0.5,
+  },
+  // Skeleton Styles
+  skeletonHeader: {
+    width: "100%",
+    height: 300,
+    backgroundColor: "#e2e8f0",
+  },
+  skeletonInfoCard: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: -40,
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  skeletonText: {
+    backgroundColor: "#e2e8f0",
+    borderRadius: 8,
+  },
+  skeletonStatsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#e2e8f0",
+  },
+  skeletonStat: {
+    width: 60,
+    height: 40,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 12,
+  },
+  skeletonComboList: {
+    flexDirection: "row",
+    marginTop: 16,
+    gap: 14,
+  },
+  skeletonCombo: {
+    width: 220,
+    height: 180,
+    backgroundColor: "#e2e8f0",
+    borderRadius: 20,
   },
 });
