@@ -97,8 +97,6 @@ export const useBar = () => {
 
       try {
         const response = await barApi.getBarCombos(barId);
-        console.log(response);
-
 
         if (response.data) {
           const mapped = mapComboList(response.data);

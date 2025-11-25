@@ -13,6 +13,7 @@ import {
   Image,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -21,6 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
+// Combo Card Component (separate to use hooks properly)
 const ComboCard: React.FC<{ item: ComboItem; index: number }> = ({ item, index }) => {
   const animValue = useRef(new Animated.Value(0)).current;
 
@@ -101,9 +103,11 @@ const SkeletonCard = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      
       {/* Skeleton Header */}
       <Animated.View style={[styles.skeletonHeader, { opacity }]} />
-      
+
       {/* Skeleton Info Card */}
       <View style={styles.skeletonInfoCard}>
         <Animated.View
@@ -222,13 +226,11 @@ const BarDetail: React.FC<any> = ({}) => {
       }),
     ]).start();
 
-    // TODO: Call API đặt bàn ở đây
     handleBookTable();
   };
 
   const handleBookTable = async () => {
     try {
-      // Placeholder cho API call
       Alert.alert(
         "Đặt bàn",
         `Bạn muốn đặt bàn tại ${barDetail?.barName}?`,
@@ -241,11 +243,25 @@ const BarDetail: React.FC<any> = ({}) => {
             text: "Xác nhận",
             onPress: async () => {
               // TODO: Thay bằng API call thực tế
-              // const response = await bookTable({
+              // Ví dụ:
+              // const bookingData = {
               //   barId: id,
-              //   ...bookingData
-              // });
-              
+              //   date: selectedDate,
+              //   time: selectedTime,
+              //   numberOfGuests: guestCount,
+              //   customerName: userName,
+              //   phoneNumber: userPhone,
+              // };
+              // 
+              // const response = await bookingApi.createBooking(bookingData);
+              // 
+              // if (response.success) {
+              //   Alert.alert("Thành công", "Đặt bàn thành công!");
+              //   router.push("/bookings");
+              // } else {
+              //   Alert.alert("Lỗi", response.message);
+              // }
+
               Alert.alert("Thành công", "Đặt bàn thành công!");
             },
           },
@@ -277,20 +293,24 @@ const BarDetail: React.FC<any> = ({}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header with Back Button */}
-      <View style={styles.headerOverlay}>
-        <Pressable
-          style={styles.backButtonCircle}
-          onPress={handleBackPress}
-          android_ripple={{ color: "rgba(255,255,255,0.3)", borderless: true }}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
-        <Pressable style={styles.favoriteButton}>
-          <Ionicons name="heart-outline" size={24} color="#fff" />
-        </Pressable>
-      </View>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      
+      {/* Header with Back Button - Fixed positioning for notch */}
+      <SafeAreaView style={styles.headerSafeArea} edges={["top"]}>
+        <View style={styles.headerOverlay}>
+          <Pressable
+            style={styles.backButtonCircle}
+            onPress={handleBackPress}
+            android_ripple={{ color: "rgba(255,255,255,0.3)", borderless: true }}
+          >
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </Pressable>
+          <Pressable style={styles.favoriteButton}>
+            <Ionicons name="heart-outline" size={24} color="#fff" />
+          </Pressable>
+        </View>
+      </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Bar Image */}
@@ -449,7 +469,7 @@ const BarDetail: React.FC<any> = ({}) => {
           </LinearGradient>
         </Pressable>
       </Animated.View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -497,30 +517,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  headerOverlay: {
+  headerSafeArea: {
     position: "absolute",
-    top: 60,
+    top: 0,
     left: 0,
     right: 0,
+    zIndex: 10,
+    backgroundColor: "transparent",
+  },
+  headerOverlay: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    zIndex: 10,
+    paddingVertical: 12,
   },
   backButtonCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
-    backdropFilter: "blur(10px)",
   },
   favoriteButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
   },
