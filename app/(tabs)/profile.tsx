@@ -1,4 +1,5 @@
-import AnimatedHeader from '@/components/ui/AnimatedHeader';
+import { ProfileHeader } from '@/components/ProfileHeader';
+import { SidebarMenu } from '@/components/SidebarMenu';
 import { fieldLabels, mockPosts } from '@/constants/profileData';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -25,12 +26,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
-const PHOTO_SIZE = (screenWidth - 4) / 3; // 3 ảnh 1 hàng với khoảng cách 2px
+const PHOTO_SIZE = (screenWidth - 4) / 3;
 
-// Lấy tất cả ảnh từ các bài viết
 const getAllPhotos = (posts: any[]) => {
   const photos: any[] = [];
   posts.forEach((post) => {
@@ -47,8 +47,46 @@ const getAllPhotos = (posts: any[]) => {
 
 type TabType = 'info' | 'posts' | 'photos';
 
+interface Account {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string;
+  type: 'personal' | 'dj' | 'bar';
+  typeLabel: string;
+}
+
+// Mock accounts data
+const mockAccounts: Account[] = [
+  {
+    id: '1',
+    name: 'Nguyễn Văn A',
+    email: 'nguyenvana@example.com',
+    avatar: 'https://i.pravatar.cc/150?img=1',
+    type: 'personal',
+    typeLabel: 'Cá nhân',
+  },
+  {
+    id: '2',
+    name: 'DJ Shadow',
+    email: 'djshadow@example.com',
+    avatar: 'https://i.pravatar.cc/150?img=2',
+    type: 'dj',
+    typeLabel: 'DJ',
+  },
+  {
+    id: '3',
+    name: 'The Moon Bar',
+    email: 'themoonbar@example.com',
+    avatar: 'https://i.pravatar.cc/150?img=3',
+    type: 'bar',
+    typeLabel: 'Quán Bar',
+  },
+];
+
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const userId = '1';
   const { authState, logout } = useAuth();
   const {
@@ -66,8 +104,11 @@ export default function ProfileScreen() {
   const [tempValue, setTempValue] = useState('');
   const [imageLoading, setImageLoading] = useState<'avatar' | 'coverImage' | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('info');
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [currentAccountId, setCurrentAccountId] = useState('1');
 
   const scrollY = useRef(new Animated.Value(0)).current;
+  const menuAnimation = useRef(new Animated.Value(-320)).current;
   const [refreshing, setRefreshing] = useState(false);
 
   const allPhotos = getAllPhotos(mockPosts);
@@ -78,32 +119,89 @@ export default function ProfileScreen() {
     setRefreshing(false);
   }, [fetchProfile]);
 
+  const toggleMenu = () => {
+    if (menuVisible) {
+      Animated.timing(menuAnimation, {
+        toValue: -320,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setMenuVisible(false));
+    } else {
+      setMenuVisible(true);
+      Animated.timing(menuAnimation, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
+
   const handleLogout = () => {
-    Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
-      { text: 'Hủy', style: 'cancel' },
-      {
-        text: 'Đăng xuất',
-        style: 'destructive',
-        onPress: () => {
-          logout();
+    toggleMenu();
+    setTimeout(() => {
+      Alert.alert('Đăng xuất', 'Bạn có chắc chắn muốn đăng xuất?', [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: () => {
+            logout();
+          },
         },
-      },
-    ]);
-  };
-
-  const handleTopUp = () => {
-    router.push('/topup');
-  };
-
-  const handlePostPress = (postId: string) => {
-    router.push({
-      pathname: '/post',
-      params: { id: postId },
-    });
+      ]);
+    }, 300);
   };
 
   const handleUpgradeAccount = () => {
-    router.push('/role');
+    toggleMenu();
+    setTimeout(() => {
+      Alert.alert(
+        'Nâng cấp tài khoản',
+        'Nâng cấp lên tài khoản doanh nghiệp để trải nghiệm nhiều tính năng hơn!',
+        [
+          { text: 'Để sau', style: 'cancel' },
+          {
+            text: 'Nâng cấp ngay',
+            onPress: () => {
+              console.log('Navigate to upgrade');
+            },
+          },
+        ]
+      );
+    }, 300);
+  };
+
+  const handleSwitchAccount = (accountId: string) => {
+    setCurrentAccountId(accountId);
+    toggleMenu();
+    setTimeout(() => {
+      Alert.alert('Chuyển tài khoản', `Đã chuyển sang tài khoản ${mockAccounts.find(a => a.id === accountId)?.name}`);
+    }, 300);
+  };
+
+  const handleAddAccount = () => {
+    toggleMenu();
+    setTimeout(() => {
+      Alert.alert(
+        'Thêm tài khoản',
+        'Bạn muốn tạo loại tài khoản nào?',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Tài khoản DJ',
+            onPress: () => console.log('Create DJ account'),
+          },
+          {
+            text: 'Tài khoản Quán Bar',
+            onPress: () => console.log('Create Bar account'),
+          },
+        ]
+      );
+    }, 300);
+  };
+
+  const handlePostPress = (postId: string) => {
+    // router.push({ pathname: '/post', params: { id: postId } });
   };
 
   const handleFollowersPress = () => {
@@ -124,7 +222,6 @@ export default function ProfileScreen() {
     async (type: 'avatar' | 'coverImage') => {
       try {
         setImageLoading(type);
-
         const result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
@@ -134,7 +231,6 @@ export default function ProfileScreen() {
 
         if (!result.canceled) {
           const success = await updateProfileImage(type, result.assets[0].uri);
-
           if (success) {
             Alert.alert('Thành công', 'Đã cập nhật ảnh');
           }
@@ -160,28 +256,17 @@ export default function ProfileScreen() {
       Alert.alert('Lỗi', 'Vui lòng nhập giá trị');
       return;
     }
-
     setEditModalVisible(false);
-    
     const success = await updateProfileField(editingField, tempValue);
-
     if (success) {
       Alert.alert('Thành công', 'Đã cập nhật thông tin');
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(amount);
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-
     if (diffInHours < 1) return 'Vừa xong';
     if (diffInHours < 24) return `${diffInHours} giờ trước`;
     return `${Math.floor(diffInHours / 24)} ngày trước`;
@@ -216,13 +301,6 @@ export default function ProfileScreen() {
     </TouchableOpacity>
   );
 
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, -100],
-    extrapolate: 'clamp',
-  });
-
-  // Render Post Item
   const renderPostItem = ({ item }: { item: any }) => (
     <View style={styles.postCard}>
       <TouchableOpacity onPress={() => handlePostPress(item.id)}>
@@ -260,171 +338,12 @@ export default function ProfileScreen() {
     </View>
   );
 
-  // Render Photo Item
   const renderPhotoItem = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.photoItem} onPress={() => handlePostPress(item.postId)}>
       <Image source={{ uri: item.uri }} style={styles.photoImage} />
     </TouchableOpacity>
   );
 
-  // Header Component
-  const ProfileHeader = () => (
-    <>
-      <TouchableOpacity
-        style={styles.coverContainer}
-        onPress={() => pickImage('coverImage')}
-        disabled={imageLoading === 'coverImage'}
-      >
-        <Image 
-          source={{ uri: profile?.background || profile?.coverImage }} 
-          style={styles.coverImage} 
-        />
-        <View style={styles.coverOverlay}>
-          {imageLoading === 'coverImage' ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <>
-              <Ionicons name="camera" size={24} color="#fff" />
-              <Text style={styles.coverText}>Đổi ảnh bìa</Text>
-            </>
-          )}
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.avatarContainer}
-        onPress={() => pickImage('avatar')}
-        disabled={imageLoading === 'avatar'}
-      >
-        <Image source={{ uri: profile?.avatar }} style={styles.avatar} />
-        <View style={styles.avatarOverlay}>
-          {imageLoading === 'avatar' ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Ionicons name="camera" size={16} color="#fff" />
-          )}
-        </View>
-      </TouchableOpacity>
-
-      <View style={styles.nameSection}>
-        <Text style={styles.name}>{profile?.userName || 'Người dùng'}</Text>
-        <Text style={styles.bio}>{profile?.bio || 'Chưa có tiểu sử'}</Text>
-      </View>
-
-      <View style={styles.balanceSection}>
-        <View style={styles.balanceContainer}>
-          <View style={styles.balanceLeft}>
-            <Ionicons name="wallet-outline" size={24} color="#10b981" />
-            <View style={styles.balanceText}>
-              <Text style={styles.balanceLabel}>Số dư hiện tại</Text>
-              <Text style={styles.balanceAmount}>
-                {profile ? formatCurrency(0) : '0 ₫'}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity style={styles.topUpButton} onPress={handleTopUp}>
-            <Ionicons name="add-circle" size={20} color="#fff" />
-            <Text style={styles.topUpText}>Nạp tiền</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Nâng cấp tài khoản - uncomment nếu cần */}
-      {/* {authState.role === Role.USER && (
-        <TouchableOpacity style={styles.upgradeButton} onPress={handleUpgradeAccount}>
-          <Ionicons name="arrow-up-circle" size={20} color="#fff" />
-          <Text style={styles.upgradeText}>Nâng cấp tài khoản</Text>
-        </TouchableOpacity>
-      )} */}
-
-      {/* <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{profile.posts}</Text>
-          <Text style={styles.statLabel}>Bài viết</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{profile.followers.toLocaleString()}</Text>
-          <Text style={styles.statLabel}>Người theo dõi</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{profile.following}</Text>
-          <Text style={styles.statLabel}>Đang theo dõi</Text>
-        </View>
-      </View> */}
-
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{mockPosts.length}</Text>
-          <Text style={styles.statLabel}>Bài viết</Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.statItem}
-          onPress={handleFollowersPress}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Người theo dõi</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.statItem}
-          onPress={handleFollowingPress}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.statNumber}>0</Text>
-          <Text style={styles.statLabel}>Đang theo dõi</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'info' && styles.activeTab]}
-          onPress={() => setActiveTab('info')}
-        >
-          <Ionicons
-            name="information-circle"
-            size={20}
-            color={activeTab === 'info' ? '#2563eb' : '#6b7280'}
-          />
-          <Text style={[styles.tabText, activeTab === 'info' && styles.activeTabText]}>
-            Thông tin
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'posts' && styles.activeTab]}
-          onPress={() => setActiveTab('posts')}
-        >
-          <Ionicons
-            name="documents"
-            size={20}
-            color={activeTab === 'posts' ? '#2563eb' : '#6b7280'}
-          />
-          <Text style={[styles.tabText, activeTab === 'posts' && styles.activeTabText]}>
-            Bài viết
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'photos' && styles.activeTab]}
-          onPress={() => setActiveTab('photos')}
-        >
-          <Ionicons
-            name="images"
-            size={20}
-            color={activeTab === 'photos' ? '#2563eb' : '#6b7280'}
-          />
-          <Text style={[styles.tabText, activeTab === 'photos' && styles.activeTabText]}>
-            Ảnh
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </>
-  );
-
-  // Info Tab Content
   const InfoContent = () => (
     <>
       <View style={styles.section}>
@@ -481,24 +400,39 @@ export default function ProfileScreen() {
 
   if (loading && !profile?.userName) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
           <Text style={styles.loadingText}>Đang tải hồ sơ...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#1f2937" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <AnimatedHeader
-        title="Hồ Sơ"
-        iconName="log-out-outline"
-        onIconPress={handleLogout}
-        headerTranslateY={headerTranslateY}
+      {/* Floating Menu Button - positioned to avoid notch */}
+      {!menuVisible && (
+        <TouchableOpacity
+          style={[styles.floatingMenuButton, { top: insets.top + 10 }]}
+          onPress={toggleMenu}
+        >
+          <Ionicons name="menu" size={28} color="#fff" />
+        </TouchableOpacity>
+      )}
+
+      <SidebarMenu
+        visible={menuVisible}
+        menuAnimation={menuAnimation}
+        profile={profile}
+        accounts={mockAccounts}
+        currentAccountId={currentAccountId}
+        onClose={toggleMenu}
+        onLogout={handleLogout}
+        onUpgradeAccount={handleUpgradeAccount}
+        onSwitchAccount={handleSwitchAccount}
       />
 
       {activeTab === 'info' ? (
@@ -513,13 +447,21 @@ export default function ProfileScreen() {
               tintColor="#2563eb"
             />
           }
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
           scrollEventThrottle={16}
         >
-          <ProfileHeader />
+          <ProfileHeader
+            profile={profile}
+            imageLoading={imageLoading}
+            activeTab={activeTab}
+            postsCount={mockPosts.length}
+            onPickImage={pickImage}
+            onTabChange={setActiveTab}
+            onFollowersPress={handleFollowersPress}
+            onFollowingPress={handleFollowingPress}
+          />
           <InfoContent />
 
           {error && (
@@ -535,7 +477,18 @@ export default function ProfileScreen() {
           data={mockPosts}
           renderItem={renderPostItem}
           keyExtractor={(item) => item.id}
-          ListHeaderComponent={ProfileHeader}
+          ListHeaderComponent={
+            <ProfileHeader
+              profile={profile}
+              imageLoading={imageLoading}
+              activeTab={activeTab}
+              postsCount={mockPosts.length}
+              onPickImage={pickImage}
+              onTabChange={setActiveTab}
+              onFollowersPress={handleFollowersPress}
+              onFollowingPress={handleFollowingPress}
+            />
+          }
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -546,10 +499,9 @@ export default function ProfileScreen() {
               tintColor="#2563eb"
             />
           }
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
           scrollEventThrottle={16}
         />
       ) : (
@@ -559,7 +511,18 @@ export default function ProfileScreen() {
           renderItem={renderPhotoItem}
           keyExtractor={(item) => item.id}
           numColumns={3}
-          ListHeaderComponent={ProfileHeader}
+          ListHeaderComponent={
+            <ProfileHeader
+              profile={profile}
+              imageLoading={imageLoading}
+              activeTab={activeTab}
+              postsCount={mockPosts.length}
+              onPickImage={pickImage}
+              onTabChange={setActiveTab}
+              onFollowersPress={handleFollowersPress}
+              onFollowingPress={handleFollowingPress}
+            />
+          }
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -570,10 +533,9 @@ export default function ProfileScreen() {
               tintColor="#2563eb"
             />
           }
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
+          onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+            useNativeDriver: true,
+          })}
           scrollEventThrottle={16}
         />
       )}
@@ -605,10 +567,7 @@ export default function ProfileScreen() {
 
             <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
               <TextInput
-                style={[
-                  styles.modalInput,
-                  editingField === 'bio' && styles.modalTextArea,
-                ]}
+                style={[styles.modalInput, editingField === 'bio' && styles.modalTextArea]}
                 value={tempValue}
                 onChangeText={setTempValue}
                 placeholder={`Nhập ${(fieldLabels[editingField] || editingField).toLowerCase()}`}
@@ -620,9 +579,10 @@ export default function ProfileScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -638,177 +598,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
   },
-  coverContainer: {
-    position: 'relative',
-    height: 200,
-    marginTop: 30,
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  coverOverlay: {
+
+  // Floating Menu Button
+  floatingMenuButton: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
-    flexDirection: 'row',
+    left: 16,
+    zIndex: 1001,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  coverText: {
-    color: '#fff',
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  avatarContainer: {
-    position: 'absolute',
-    top: 150,
-    alignSelf: 'center',
-    zIndex: 10,
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: '#fff',
-  },
-  avatarOverlay: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: '#2563eb',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  nameSection: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingTop: 20,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
-    marginTop: 16
-  },
-  bio: {
-    fontSize: 16,
-    color: '#6b7280',
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  balanceSection: {
-    backgroundColor: '#fff',
-    marginTop: 8,
-  },
-  balanceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  balanceLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  balanceText: {
-    marginLeft: 12,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 2,
-  },
-  balanceAmount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#10b981',
-  },
-  topUpButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#10b981',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  topUpText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-
-  // Tab Navigation
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    marginTop: 8,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: '#2563eb',
-  },
-  tabText: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginLeft: 6,
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: '#2563eb',
-    fontWeight: '600',
   },
 
   // Posts
@@ -984,21 +790,5 @@ const styles = StyleSheet.create({
     height: 120,
     textAlignVertical: 'top',
     paddingTop: 12,
-  },
-  upgradeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#8b5cf6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginHorizontal: 16,
-    marginVertical: 8,
-  },
-  upgradeText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 6,
   },
 });
