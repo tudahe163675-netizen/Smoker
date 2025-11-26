@@ -74,46 +74,16 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
     onProfileRefresh(dataProfile);
   };
 
-  // Handle add new account (old flow - commented out)
-  const handleAddAccount = () => {
-    onClose();
-    setTimeout(() => {
-      Alert.alert(
-        'Thêm tài khoản',
-        'Bạn muốn tạo loại tài khoản nào?',
-        [
-          { text: 'Hủy', style: 'cancel' },
-          {
-            text: 'Tài khoản DJ',
-            onPress: () => {
-              if (!canCreateAccount('dj')) {
-                Alert.alert('Thông báo', 'Bạn đã đạt giới hạn số lượng tài khoản DJ (tối đa 5)');
-                return;
-              }
-              // router.push('/create-account?type=dj');
-            },
-          },
-          {
-            text: 'Tài khoản Quán Bar',
-            onPress: () => {
-              if (!canCreateAccount('bar')) {
-                Alert.alert('Thông báo', 'Bạn đã đạt giới hạn số lượng tài khoản Quán Bar (tối đa 3)');
-                return;
-              }
-              // router.push('/create-account?type=bar');
-            },
-          },
-        ]
-      );
-    }, 300);
+  // SIMPLE VERSION: Just open modal, don't close sidebar
+  // Modal will render on top with higher zIndex
+  const handleUpgradeAccount = () => {
+    setShowBusinessModal(true);
   };
 
-  // Handle upgrade account - open business registration modal
-  const handleUpgradeAccount = () => {
-    onClose();
-    setTimeout(() => {
-      setShowBusinessModal(true);
-    }, 300);
+  // When modal closes, also close sidebar
+  const handleModalClose = () => {
+    setShowBusinessModal(false);
+    onClose(); // Close sidebar when modal closes
   };
 
   // Handle business registration submit
@@ -128,6 +98,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
         // Refresh accounts list
         await fetchAccounts();
         setShowBusinessModal(false);
+        // Sidebar will be closed when modal closes
       }
     } catch (error) {
       console.error('Business registration error:', error);
@@ -189,14 +160,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
                     </View>
                   </TouchableOpacity>
                 ))}
-
-                {/* Add Account Button - Commented out as per original */}
-                {/* <TouchableOpacity style={styles.addAccountButton} onPress={handleAddAccount}>
-                  <View style={styles.addAccountIcon}>
-                    <Ionicons name="add" size={24} color="#2563eb" />
-                  </View>
-                  <Text style={styles.addAccountText}>Thêm tài khoản</Text>
-                </TouchableOpacity> */}
               </>
             )}
           </View>
@@ -264,10 +227,10 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
         </ScrollView>
       </Animated.View>
 
-      {/* Business Registration Modal */}
+      {/* Business Registration Modal - Always render, control via visible prop */}
       <BusinessRegistrationModal
         visible={showBusinessModal}
-        onClose={() => setShowBusinessModal(false)}
+        onClose={handleModalClose}
         onSubmit={handleBusinessRegistration}
       />
     </>

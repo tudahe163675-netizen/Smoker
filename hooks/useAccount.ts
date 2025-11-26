@@ -27,11 +27,11 @@ export const useAccounts = () => {
     setError(null);
 
     try {
-      const response = await accountApi.getAccounts(userId);      
+      const response = await accountApi.getAccounts(userId);
 
       if (response.data) {
         setAccounts(response.data);
-        
+
         // Set current account (first active or first in list)
         const activeAccount = response.data.find(acc => acc.isActive);
         const firstAccount = response.data[0];
@@ -161,7 +161,7 @@ export const useAccounts = () => {
       };
 
       // Register business
-      const response = type === 'dj' 
+      const response = type === 'dj'
         ? await accountApi.registerDJ(requestData)
         : await accountApi.registerDancer(requestData);
 
@@ -173,11 +173,14 @@ export const useAccounts = () => {
 
       // Upload images if provided
       if ((businessData.avatar || businessData.background) && response.data.id) {
+
+
         const uploadResponse = await accountApi.uploadBusinessImages(response.data.id, {
           avatar: businessData.avatar,
           background: businessData.background,
         });
 
+        console.log(uploadResponse);
         if (!uploadResponse.success) {
           console.warn('Failed to upload images:', uploadResponse.message);
           // Don't fail the whole process if image upload fails
@@ -186,12 +189,12 @@ export const useAccounts = () => {
 
       // Refresh accounts list
       await fetchAccounts();
-      
+
       Alert.alert(
-        'Đăng ký thành công!', 
+        'Đăng ký thành công!',
         `Tài khoản ${type === 'dj' ? 'DJ' : 'Dancer'} của bạn đã được tạo và đang chờ phê duyệt.`
       );
-      
+
       return true;
     } catch (err) {
       const errorMessage = 'Không thể đăng ký tài khoản. Vui lòng thử lại.';

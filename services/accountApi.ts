@@ -20,13 +20,19 @@ export class AccountApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
+      // Check if body is FormData
+      const isFormData = options.body instanceof FormData;
+      
+      // Prepare headers
+      const headers: Record<string, string> = {
+        'Authorization': `Bearer ${this.token}`,
+        ...(!isFormData && { 'Content-Type': 'application/json' }), // Only add Content-Type if NOT FormData
+        ...(options.headers as Record<string, string>),
+      };
+
       const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
-        headers: {
-          'Authorization': `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
         ...options,
+        headers,
       });
 
       const data = await response.json();
@@ -171,7 +177,7 @@ export class AccountApiService {
     const response = await this.makeRequest<Account>('/business/create', {
       method: 'POST',
       body: formData,
-      headers: {} as any, // Remove Content-Type for FormData
+      // No need to pass headers - makeRequest will handle it
     });
 
     if (response.success && response.data) {
@@ -369,10 +375,11 @@ export class AccountApiService {
 
     console.log('Upload Business Images - entityId:', businessId);
 
+    // makeRequest will automatically handle FormData and preserve Authorization
     return this.makeRequest<any>('/business/upload', {
       method: 'POST',
       body: formData,
-      headers: {} as any, // Remove Content-Type for FormData
+      // No need to pass headers - makeRequest will handle it correctly
     });
   }
 }
