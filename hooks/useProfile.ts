@@ -105,6 +105,17 @@ export const useProfile = (userId: string) => {
     // Implement nếu cần
   };
 
+  const setFullProfile = (newProfile: UserProfileData) => {
+    setLoading(false)
+    
+    setProfile(prev => ({
+      ...prev,
+      ...newProfile,
+    }));
+    setLoading(true)
+  };
+
+
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
@@ -117,5 +128,6 @@ export const useProfile = (userId: string) => {
     updateProfileField,
     updateProfileImage,
     refreshBalance,
+    setFullProfile
   };
 };

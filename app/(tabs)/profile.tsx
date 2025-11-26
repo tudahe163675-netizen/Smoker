@@ -88,7 +88,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const userId = '1';
-  const { authState, logout } = useAuth();
+  const { authState, logout, updateAuthState } = useAuth();
   const {
     profile,
     loading,
@@ -96,7 +96,7 @@ export default function ProfileScreen() {
     fetchProfile,
     updateProfileField,
     updateProfileImage,
-    refreshBalance,
+    setFullProfile,
   } = useProfile(userId);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -427,12 +427,9 @@ export default function ProfileScreen() {
         visible={menuVisible}
         menuAnimation={menuAnimation}
         profile={profile}
-        accounts={mockAccounts}
-        currentAccountId={currentAccountId}
         onClose={toggleMenu}
         onLogout={handleLogout}
-        onUpgradeAccount={handleUpgradeAccount}
-        onSwitchAccount={handleSwitchAccount}
+        onProfileRefresh={setFullProfile}
       />
 
       {activeTab === 'info' ? (

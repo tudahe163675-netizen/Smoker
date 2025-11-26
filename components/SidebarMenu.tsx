@@ -1,7 +1,9 @@
 import { useAccounts } from '@/hooks/useAccount';
+import { Account } from '@/types/accountType';
+import { UserProfileData } from '@/types/profileType';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,7 +22,7 @@ interface SidebarMenuProps {
   profile: any;
   onClose: () => void;
   onLogout: () => void;
-  onProfileRefresh: () => Promise<void>; // Callback để refresh profile sau khi switch account
+  onProfileRefresh: (profile: UserProfileData) => void;
 }
 
 export const SidebarMenu: React.FC<SidebarMenuProps> = ({
@@ -36,33 +38,40 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
     accounts,
     currentAccountId,
     loading,
-    switchAccount,
     canCreateAccount,
   } = useAccounts();
-
-  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
-  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'basic' | 'premium' | 'enterprise'>('basic');
 
   if (!visible && menuAnimation.__getValue() === -320) {
     return null;
   }
 
   // Handle switch account
-  const handleSwitchAccount = async (accountId: string) => {
-    if (accountId === currentAccountId) {
-      onClose();
-      return;
-    }
+  const handleSwitchAccount = async (account: Account) => {
+    // if (accountId === currentAccountId) {
+    //   onClose();
+    //   return;
+    // }
 
     onClose();
 
-    // Show loading
-    const success = await switchAccount(accountId);
+    const dataProfile: UserProfileData = {
+    id: account.id!,
+    userName: account.name || '',
+    email: profile.email || '', 
+    avatar: account.Avatar,
+    background: account.Background || '',
+    coverImage: account.Background || '',
+    phone: account.Phone || '',
+    bio: account.Bio || '',
+    role: account.Role,
+    gender: account.Gender,
+    address: '', 
+    addressData: null, 
+    status: '', 
+    createdAt: account.created_at
+  };
 
-    if (success) {
-      // Refresh profile data after switching account
-      await onProfileRefresh();
-    }
+  onProfileRefresh(dataProfile)
   };
 
   // Handle add new account
@@ -101,10 +110,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
 
   // Handle upgrade account
   const handleUpgradeAccount = () => {
-    onClose();
-    setTimeout(() => {
-      setUpgradeModalVisible(true);
-    }, 300);
+    // onClose();
   };
 
   return (
@@ -149,7 +155,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
                       styles.accountItem,
                       currentAccountId === account.id && styles.accountItemActive,
                     ]}
-                    onPress={() => handleSwitchAccount(account.id!)}
+                    onPress={() => handleSwitchAccount(account)}
                   >
                     <Image source={{ uri: account.Avatar }} style={styles.accountAvatar} />
                     <View style={styles.accountInfo}>
@@ -326,7 +332,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   accountItemActive: {
-    backgroundColor: '#eff6ff',
+    // backgroundColor: '#eff6ff',
   },
   accountAvatar: {
     width: 40,

@@ -137,5 +137,58 @@ export const useAuth = () => {
     router.replace('/auth/login');
   };
 
-  return { authState, login, logout, upgradeRole };
+  // hooks/useAuth.ts
+
+const updateAuthState = async (
+  updates: Partial<AuthState>,
+  options?: { persist?: boolean }
+) => {
+  const shouldPersist = options?.persist ?? true;
+
+  setAuthState((prev) => {
+    const newState = { ...prev, ...updates };
+
+    // Tự động lưu vào AsyncStorage nếu cần
+    if (shouldPersist) {
+      const savePromises = [];
+
+      if (updates.userEmail !== undefined)
+        savePromises.push(AsyncStorage.setItem('userEmail', updates.userEmail || ''));
+      if (updates.token !== undefined)
+        savePromises.push(AsyncStorage.setItem('token', updates.token || ''));
+      if (updates.role !== undefined)
+        savePromises.push(AsyncStorage.setItem('role', updates.role || Role.CUSTOMER));
+      if (updates.currentId !== undefined)
+        savePromises.push(AsyncStorage.setItem('currentId', updates.currentId || ''));
+      if (updates.avatar !== undefined) {
+        if (updates.avatar) {
+          savePromises.push(AsyncStorage.setItem('avatar', updates.avatar));
+        } else {
+          savePromises.push(AsyncStorage.removeItem('avatar'));
+        }
+      }
+      if (updates.type !== undefined) {
+        if (updates.type) {
+          savePromises.push(AsyncStorage.setItem('type', updates.type));
+        } else {
+          savePromises.push(AsyncStorage.removeItem('type'));
+        }
+      }
+      if (updates.EntityAccountId !== undefined) {
+        if (updates.EntityAccountId) {
+          savePromises.push(AsyncStorage.setItem('EntityAccountId', updates.EntityAccountId));
+        } else {
+          savePromises.push(AsyncStorage.removeItem('EntityAccountId'));
+        }
+      }
+
+      // Thực hiện lưu bất đồng bộ (không cần await ở đây vì không block UI)
+      Promise.all(savePromises).catch((err) => console.warn('Lưu AsyncStorage thất bại:', err));
+    }
+
+    return newState;
+  });
+};
+
+  return { authState, login, logout, upgradeRole, updateAuthState };
 };
