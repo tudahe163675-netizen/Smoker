@@ -1,50 +1,110 @@
+import { useAccounts } from '@/hooks/useAccount';
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
-    Animated,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-
-interface Account {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  type: 'personal' | 'dj' | 'bar';
-  typeLabel: string;
-}
 
 interface SidebarMenuProps {
   visible: boolean;
   menuAnimation: Animated.Value;
   profile: any;
-  accounts: Account[];
-  currentAccountId: string;
   onClose: () => void;
   onLogout: () => void;
-  onUpgradeAccount: () => void;
-  onSwitchAccount: (accountId: string) => void;
+  onProfileRefresh: () => Promise<void>; // Callback để refresh profile sau khi switch account
 }
 
 export const SidebarMenu: React.FC<SidebarMenuProps> = ({
   visible,
   menuAnimation,
   profile,
-  accounts,
-  currentAccountId,
   onClose,
   onLogout,
-  onUpgradeAccount,
-  onSwitchAccount,
+  onProfileRefresh,
 }) => {
-  if (!visible && menuAnimation.__getValue() === -300) {
+  const router = useRouter();
+  const {
+    accounts,
+    currentAccountId,
+    loading,
+    switchAccount,
+    canCreateAccount,
+  } = useAccounts();
+
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+  const [selectedUpgradePlan, setSelectedUpgradePlan] = useState<'basic' | 'premium' | 'enterprise'>('basic');
+
+  if (!visible && menuAnimation.__getValue() === -320) {
     return null;
   }
+
+  // Handle switch account
+  const handleSwitchAccount = async (accountId: string) => {
+    if (accountId === currentAccountId) {
+      onClose();
+      return;
+    }
+
+    onClose();
+    
+    // Show loading
+    const success = await switchAccount(accountId);
+    
+    if (success) {
+      // Refresh profile data after switching account
+      await onProfileRefresh();
+    }
+  };
+
+  // Handle add new account
+  const handleAddAccount = () => {
+    onClose();
+    setTimeout(() => {
+      Alert.alert(
+        'Thêm tài khoản',
+        'Bạn muốn tạo loại tài khoản nào?',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Tài khoản DJ',
+            onPress: () => {
+              if (!canCreateAccount('dj')) {
+                Alert.alert('Thông báo', 'Bạn đã đạt giới hạn số lượng tài khoản DJ (tối đa 5)');
+                return;
+              }
+              // router.push('/create-account?type=dj');
+            },
+          },
+          {
+            text: 'Tài khoản Quán Bar',
+            onPress: () => {
+              if (!canCreateAccount('bar')) {
+                Alert.alert('Thông báo', 'Bạn đã đạt giới hạn số lượng tài khoản Quán Bar (tối đa 3)');
+                return;
+              }
+              // router.push('/create-account?type=bar');
+            },
+          },
+        ]
+      );
+    }, 300);
+  };
+
+  // Handle upgrade account
+  const handleUpgradeAccount = () => {
+    onClose();
+    setTimeout(() => {
+      setUpgradeModalVisible(true);
+    }, 300);
+  };
 
   return (
     <>
@@ -73,32 +133,54 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
           {/* Account Management Section */}
           <View style={styles.accountSection}>
             <Text style={styles.accountSectionTitle}>Tài khoản của bạn</Text>
-            {accounts.map((account) => (
-              <TouchableOpacity
-                key={account.id}
-                style={[
-                  styles.accountItem,
-                  currentAccountId === account.id && styles.accountItemActive,
-                ]}
-                onPress={() => onSwitchAccount(account.id)}
-              >
-                <Image source={{ uri: account.avatar }} style={styles.accountAvatar} />
-                <View style={styles.accountInfo}>
-                  <Text style={styles.accountName}>{account.name}</Text>
-                  <Text style={styles.accountType}>{account.typeLabel}</Text>
-                </View>
-                {currentAccountId === account.id && (
-                  <Ionicons name="checkmark-circle" size={20} color="#2563eb" />
-                )}
-              </TouchableOpacity>
-            ))}
+            
+            {/* {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#2563eb" />
+              </View>
+            ) : (
+              <>
+                {accounts.map((account) => (
+                  <TouchableOpacity
+                    key={account.id}
+                    style={[
+                      styles.accountItem,
+                      currentAccountId === account.id && styles.accountItemActive,
+                    ]}
+                    onPress={() => handleSwitchAccount(account.id)}
+                  >
+                    <Image source={{ uri: account.avatar }} style={styles.accountAvatar} />
+                    <View style={styles.accountInfo}>
+                      <Text style={styles.accountName}>{account.name}</Text>
+                      <Text style={styles.accountType}>{account.typeLabel}</Text>
+                    </View>
+                    {currentAccountId === account.id && (
+                      <Ionicons name="checkmark-circle" size={20} color="#2563eb" />
+                    )}
+                  </TouchableOpacity>
+                ))}
 
+                <TouchableOpacity style={styles.addAccountButton} onPress={handleAddAccount}>
+                  <View style={styles.addAccountIcon}>
+                    <Ionicons name="add" size={24} color="#2563eb" />
+                  </View>
+                  <Text style={styles.addAccountText}>Thêm tài khoản</Text>
+                </TouchableOpacity>
+              </>
+            )} */}
+
+             <TouchableOpacity style={styles.addAccountButton} onPress={handleAddAccount}>
+                  <View style={styles.addAccountIcon}>
+                    <Ionicons name="add" size={24} color="#2563eb" />
+                  </View>
+                  <Text style={styles.addAccountText}>Thêm tài khoản</Text>
+                </TouchableOpacity>
           </View>
 
           <View style={styles.menuDivider} />
 
           {/* Upgrade Account */}
-          <TouchableOpacity style={styles.menuItem} onPress={onUpgradeAccount}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleUpgradeAccount}>
             <View style={styles.menuItemIcon}>
               <Ionicons name="business" size={24} color="#8b5cf6" />
             </View>
@@ -218,9 +300,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
   },
-  closeMenuButton: {
-    padding: 4,
-  },
   menuContent: {
     flex: 1,
   },
@@ -236,6 +315,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     textTransform: 'uppercase',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
   },
   accountItem: {
     flexDirection: 'row',
@@ -266,8 +349,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
   },
-
-
+  addAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  addAccountIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  addAccountText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#2563eb',
+  },
 
   menuItem: {
     flexDirection: 'row',
@@ -299,5 +401,93 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#e5e7eb',
     marginVertical: 8,
+  },
+
+  // Upgrade Modal
+  upgradeModalContent: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginVertical: 60,
+    borderRadius: 20,
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  upgradeModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  upgradeModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  upgradeModalFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  upgradeButton: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  upgradeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Plan Cards
+  planCard: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 20,
+    marginVertical: 8,
+  },
+  planCardSelected: {
+    borderColor: '#2563eb',
+    backgroundColor: '#eff6ff',
+  },
+  planHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  planTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  planPrice: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#2563eb',
+  },
+  planFeatures: {
+    gap: 8,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  featureText: {
+    fontSize: 14,
+    color: '#6b7280',
+    flex: 1,
   },
 });
