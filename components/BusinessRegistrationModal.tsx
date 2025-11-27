@@ -2,16 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 type BusinessType = 'dj' | 'dancer';
@@ -139,7 +141,7 @@ export const BusinessRegistrationModal: React.FC<BusinessRegistrationModalProps>
       Alert.alert('Thông báo', 'Vui lòng nhập địa chỉ');
       return false;
     }
-    
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
@@ -213,271 +215,277 @@ export const BusinessRegistrationModal: React.FC<BusinessRegistrationModalProps>
   );
 
   const renderForm = () => (
-    <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-      <View style={styles.formHeader}>
-        <Text style={styles.formTitle}>
-          Đăng ký tài khoản {businessType === 'dj' ? 'DJ' : 'Dancer'}
-        </Text>
-        <Text style={styles.formSubtitle}>
-          Điền thông tin để hoàn tất đăng ký
-        </Text>
-      </View>
-
-      {/* Avatar Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Ảnh đại diện *</Text>
-        <TouchableOpacity
-          style={styles.imageUpload}
-          onPress={() => handlePickImage('avatar')}
-        >
-          {formData.avatar ? (
-            <Image source={{ uri: formData.avatar.uri }} style={styles.uploadedImage} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="camera" size={32} color="#9ca3af" />
-              <Text style={styles.imagePlaceholderText}>Chọn ảnh đại diện</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Background Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Ảnh bìa</Text>
-        <TouchableOpacity
-          style={styles.imageUploadWide}
-          onPress={() => handlePickImage('background')}
-        >
-          {formData.background ? (
-            <Image source={{ uri: formData.background.uri }} style={styles.uploadedImageWide} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="images" size={32} color="#9ca3af" />
-              <Text style={styles.imagePlaceholderText}>Chọn ảnh bìa</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Basic Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
-        
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Tên hiển thị *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder={businessType === 'dj' ? 'VD: DJ Khoa' : 'VD: Dancer Linh'}
-            value={formData.name}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
-          />
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
+      <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
+        <View style={styles.formHeader}>
+          <Text style={styles.formTitle}>
+            Đăng ký tài khoản {businessType === 'dj' ? 'DJ' : 'Dancer'}
+          </Text>
+          <Text style={styles.formSubtitle}>
+            Điền thông tin để hoàn tất đăng ký
+          </Text>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Số điện thoại *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="VD: +84901234567"
-            keyboardType="phone-pad"
-            value={formData.phone}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="VD: contact@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={formData.email}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Địa chỉ *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="VD: Quận 1, TP.HCM"
-            value={formData.address}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Giới tính</Text>
-          <View style={styles.genderContainer}>
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                formData.gender === 'male' && styles.genderButtonActive,
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, gender: 'male' }))}
-            >
-              <Ionicons
-                name="male"
-                size={20}
-                color={formData.gender === 'male' ? '#2563eb' : '#6b7280'}
-              />
-              <Text
-                style={[
-                  styles.genderButtonText,
-                  formData.gender === 'male' && styles.genderButtonTextActive,
-                ]}
-              >
-                Nam
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                formData.gender === 'female' && styles.genderButtonActive,
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, gender: 'female' }))}
-            >
-              <Ionicons
-                name="female"
-                size={20}
-                color={formData.gender === 'female' ? '#2563eb' : '#6b7280'}
-              />
-              <Text
-                style={[
-                  styles.genderButtonText,
-                  formData.gender === 'female' && styles.genderButtonTextActive,
-                ]}
-              >
-                Nữ
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                formData.gender === 'other' && styles.genderButtonActive,
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, gender: 'other' }))}
-            >
-              <Ionicons
-                name="transgender"
-                size={20}
-                color={formData.gender === 'other' ? '#2563eb' : '#6b7280'}
-              />
-              <Text
-                style={[
-                  styles.genderButtonText,
-                  formData.gender === 'other' && styles.genderButtonTextActive,
-                ]}
-              >
-                Khác
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Giới thiệu</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Giới thiệu về bản thân..."
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            value={formData.bio}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, bio: text }))}
-          />
-        </View>
-      </View>
-
-      {/* DJ Specific */}
-      {businessType === 'dj' && (
+        {/* Avatar Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin DJ</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Thể loại nhạc</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="VD: EDM, House, Techno"
-              value={formData.genre}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, genre: text }))}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Giá theo giờ (VNĐ)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="VD: 500000"
-              keyboardType="numeric"
-              value={formData.pricePerHours}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerHours: text }))}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Giá theo buổi (VNĐ)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="VD: 2000000"
-              keyboardType="numeric"
-              value={formData.pricePerSession}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerSession: text }))}
-            />
-          </View>
+          <Text style={styles.sectionTitle}>Ảnh đại diện *</Text>
+          <TouchableOpacity
+            style={styles.imageUpload}
+            onPress={() => handlePickImage('avatar')}
+          >
+            {formData.avatar ? (
+              <Image source={{ uri: formData.avatar.uri }} style={styles.uploadedImage} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="camera" size={32} color="#9ca3af" />
+                <Text style={styles.imagePlaceholderText}>Chọn ảnh đại diện</Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
-      )}
 
-      {/* Dancer Specific */}
-      {businessType === 'dancer' && (
+        {/* Background Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin Dancer</Text>
-          
+          <Text style={styles.sectionTitle}>Ảnh bìa</Text>
+          <TouchableOpacity
+            style={styles.imageUploadWide}
+            onPress={() => handlePickImage('background')}
+          >
+            {formData.background ? (
+              <Image source={{ uri: formData.background.uri }} style={styles.uploadedImageWide} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="images" size={32} color="#9ca3af" />
+                <Text style={styles.imagePlaceholderText}>Chọn ảnh bìa</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Basic Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Giá theo giờ (VNĐ)</Text>
+            <Text style={styles.label}>Tên hiển thị *</Text>
             <TextInput
               style={styles.input}
-              placeholder="VD: 400000"
-              keyboardType="numeric"
-              value={formData.pricePerHours}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerHours: text }))}
+              placeholder={businessType === 'dj' ? 'VD: DJ Khoa' : 'VD: Dancer Linh'}
+              value={formData.name}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Giá theo buổi (VNĐ)</Text>
+            <Text style={styles.label}>Số điện thoại *</Text>
             <TextInput
               style={styles.input}
-              placeholder="VD: 1500000"
-              keyboardType="numeric"
-              value={formData.pricePerSession}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerSession: text }))}
+              placeholder="VD: +84901234567"
+              keyboardType="phone-pad"
+              value={formData.phone}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, phone: text }))}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="VD: contact@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={formData.email}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Địa chỉ *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="VD: Quận 1, TP.HCM"
+              value={formData.address}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Giới tính</Text>
+            <View style={styles.genderContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  formData.gender === 'male' && styles.genderButtonActive,
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, gender: 'male' }))}
+              >
+                <Ionicons
+                  name="male"
+                  size={20}
+                  color={formData.gender === 'male' ? '#2563eb' : '#6b7280'}
+                />
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    formData.gender === 'male' && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Nam
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  formData.gender === 'female' && styles.genderButtonActive,
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, gender: 'female' }))}
+              >
+                <Ionicons
+                  name="female"
+                  size={20}
+                  color={formData.gender === 'female' ? '#2563eb' : '#6b7280'}
+                />
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    formData.gender === 'female' && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Nữ
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.genderButton,
+                  formData.gender === 'other' && styles.genderButtonActive,
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, gender: 'other' }))}
+              >
+                <Ionicons
+                  name="transgender"
+                  size={20}
+                  color={formData.gender === 'other' ? '#2563eb' : '#6b7280'}
+                />
+                <Text
+                  style={[
+                    styles.genderButtonText,
+                    formData.gender === 'other' && styles.genderButtonTextActive,
+                  ]}
+                >
+                  Khác
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Giới thiệu</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Giới thiệu về bản thân..."
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              value={formData.bio}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, bio: text }))}
             />
           </View>
         </View>
-      )}
 
-      <View style={styles.submitSection}>
-        <Text style={styles.noteText}>
-          * Các trường bắt buộc phải điền
-        </Text>
-        <TouchableOpacity
-          style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Đăng ký ngay</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        {/* DJ Specific */}
+        {businessType === 'dj' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Thông tin DJ</Text>
 
-      <View style={{ height: 40 }} />
-    </ScrollView>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Thể loại nhạc</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="VD: EDM, House, Techno"
+                value={formData.genre}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, genre: text }))}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Giá theo giờ (VNĐ)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="VD: 500000"
+                keyboardType="numeric"
+                value={formData.pricePerHours}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerHours: text }))}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Giá theo buổi (VNĐ)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="VD: 2000000"
+                keyboardType="numeric"
+                value={formData.pricePerSession}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerSession: text }))}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Dancer Specific */}
+        {businessType === 'dancer' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Thông tin Dancer</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Giá theo giờ (VNĐ)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="VD: 400000"
+                keyboardType="numeric"
+                value={formData.pricePerHours}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerHours: text }))}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Giá theo buổi (VNĐ)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="VD: 1500000"
+                keyboardType="numeric"
+                value={formData.pricePerSession}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, pricePerSession: text }))}
+              />
+            </View>
+          </View>
+        )}
+
+        <View style={styles.submitSection}>
+          <Text style={styles.noteText}>
+            * Các trường bắt buộc phải điền
+          </Text>
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitButtonText}>Đăng ký ngay</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 
   return (
@@ -640,6 +648,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9ca3af',
     marginTop: 8,
+    textAlign: 'center'
   },
   uploadedImage: {
     width: '100%',
