@@ -180,7 +180,6 @@ export const useAccounts = () => {
           background: businessData.background,
         });
 
-        console.log(uploadResponse);
         if (!uploadResponse.success) {
           console.warn('Failed to upload images:', uploadResponse.message);
           // Don't fail the whole process if image upload fails

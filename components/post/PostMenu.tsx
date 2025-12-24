@@ -34,7 +34,7 @@ export const PostMenu: React.FC<PostMenuProps> = ({
       transparent
       animationType="none"
       onRequestClose={onClose}
-      statusBarTranslucent={true} // Đảm bảo modal che cả thanh trạng thái trên Android
+      statusBarTranslucent={true} // Đảm bảo modals che cả thanh trạng thái trên Android
     >
       <StatusBar
         translucent

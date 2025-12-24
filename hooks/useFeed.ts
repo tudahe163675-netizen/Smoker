@@ -56,20 +56,22 @@ export const useFeed = () => {
       setUploadProgress(10); // Bắt đầu
       
       // Bước 1: Upload media nếu có
-      let uploadedMediaUrls: string[] = [];
+      let uploadedMediaMap: Array<{ url: string; type: 'image' | 'video' }> = [];
       
       if (postData.files && postData.files.length > 0) {
-        console.log('Uploading media files...');
         setUploadProgress(30);
         
         const uploadResponse = await feedApi.uploadPostMedia(postData.files);
         
         if (uploadResponse.success && uploadResponse.data) {
-          uploadedMediaUrls = uploadResponse.data.map(item => item.secure_url || item.url);
-          console.log('Media uploaded successfully:', uploadedMediaUrls);
+          // Map đúng file với URL đã upload dựa trên index
+          uploadedMediaMap = postData.files.map((file, index) => ({
+            url: uploadResponse.data![index]?.secure_url || uploadResponse.data![index]?.url || '',
+            type: file.type
+          }));
           setUploadProgress(60);
         } else {
-          Alert.alert('Lỗi', 'Không thể tải lên media');
+          Alert.alert('Lỗi', uploadResponse.message || 'Không thể tải lên media');
           setUploading(false);
           setUploadProgress(0);
           return false;
@@ -80,33 +82,31 @@ export const useFeed = () => {
 
       // Bước 2: Tạo object cho API theo đúng format
       const createPostPayload: any = {
-        title: postData.content.substring(0, 50) || "Bài viết mới",
         content: postData.content,
         type: "post" as const,
-        entityType: "Account" as const,
-        entityAccountId: authState.currentId,
+        status: 'public',
+        entityAccountId: authState.EntityAccountId,
       };
 
       // Thêm images nếu có ảnh
-      if (uploadedMediaUrls.length > 0 && postData.files?.some(f => f.type === 'image')) {
-        const imageUrls = uploadedMediaUrls.filter((_, idx) => postData.files![idx].type === 'image');
-        createPostPayload.images = imageUrls.reduce((acc, url, idx) => {
-          acc[`img_${idx + 1}`] = { url, caption: '' };
+      const imageMedias = uploadedMediaMap.filter(item => item.type === 'image' && item.url);
+      if (imageMedias.length > 0) {
+        createPostPayload.images = imageMedias.reduce((acc, item, idx) => {
+          acc[`img_${idx + 1}`] = { url: item.url, caption: '' };
           return acc;
         }, {} as Record<string, { url: string; caption: string }>);
       }
 
       // Thêm videos nếu có video
-      if (uploadedMediaUrls.length > 0 && postData.files?.some(f => f.type === 'video')) {
-        const videoUrls = uploadedMediaUrls.filter((_, idx) => postData.files![idx].type === 'video');
-        createPostPayload.videos = videoUrls.reduce((acc, url, idx) => {
-          acc[`video_${idx + 1}`] = { url, caption: '' };
+      const videoMedias = uploadedMediaMap.filter(item => item.type === 'video' && item.url);
+      if (videoMedias.length > 0) {
+        createPostPayload.videos = videoMedias.reduce((acc, item, idx) => {
+          acc[`video_${idx + 1}`] = { url: item.url, caption: '' };
           return acc;
         }, {} as Record<string, { url: string; caption: string }>);
       }
 
       // Bước 3: Tạo bài viết
-      console.log('Creating post with payload:', createPostPayload);
       setUploadProgress(80);
       
       const response = await feedApi.createPost(createPostPayload);
@@ -116,6 +116,11 @@ export const useFeed = () => {
         
         // ✅ API trả về { post: {...}, medias: [...] }
         const newPost = response.data.post || response.data;
+        
+        // ✅ Đảm bảo có id (nếu API trả về _id, map sang id)
+        if (!newPost.id && newPost._id) {
+          newPost.id = newPost._id;
+        }
         
         // ✅ GÁN MEDIAS ARRAY TRỰC TIẾP
         if (response.data.medias && response.data.medias.length > 0) {
@@ -157,6 +162,17 @@ export const useFeed = () => {
         if (!newPost.likes) newPost.likes = {};
         if (!newPost.comments) newPost.comments = {};
         
+        // Đảm bảo có stats nếu chưa có
+        if (!newPost.stats) {
+          newPost.stats = {
+            likeCount: 0,
+            commentCount: 0,
+            shareCount: 0,
+            viewCount: 0,
+            isLikedByMe: false
+          };
+        }
+        
         // ✅ Thêm vào đầu danh sách posts
         setPosts(prev => [newPost, ...prev]);
         
@@ -185,12 +201,15 @@ export const useFeed = () => {
   const likePost = useCallback(async (postId: string) => {
     setPosts(prevPosts =>
       prevPosts.map(post => {
-        const isLiked = !!authState.currentId && !!Object.values(post.likes || {}).find(
+        const postIdMatch = (post.id ?? post._id) === postId;
+        if (!postIdMatch) return post;
+
+        const currentIsLiked = post.stats?.isLikedByMe ?? (!!authState.currentId && !!Object.values(post.likes || {}).find(
           like => like.accountId === authState.currentId
-        );
+        ));
 
         const updatedLikes = { ...post.likes };
-        if (isLiked) {
+        if (currentIsLiked) {
           // unlike
           for (const key in updatedLikes) {
             if (updatedLikes[key].accountId === authState.currentId) {
@@ -206,7 +225,23 @@ export const useFeed = () => {
           };
         }
 
-        return post._id === postId ? { ...post, likes: updatedLikes } : post;
+        return {
+          ...post,
+          stats: post.stats ? {
+            ...post.stats,
+            likeCount: currentIsLiked 
+              ? Math.max(0, (post.stats.likeCount || 0) - 1)
+              : (post.stats.likeCount || 0) + 1,
+            isLikedByMe: !currentIsLiked
+          } : {
+            likeCount: currentIsLiked ? 0 : 1,
+            commentCount: 0,
+            shareCount: 0,
+            viewCount: 0,
+            isLikedByMe: !currentIsLiked
+          },
+          likes: updatedLikes
+        };
       })
     );
 

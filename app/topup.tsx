@@ -288,6 +288,7 @@ export default function TopUpScreen() {
               value={customAmount}
               onChangeText={setCustomAmountValue}
               placeholder="Nhập số tiền (VND)"
+              placeholderTextColor="#9ca3af"
               keyboardType="numeric"
               maxLength={10}
             />

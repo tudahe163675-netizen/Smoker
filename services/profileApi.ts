@@ -22,6 +22,7 @@ export class ProfileApiService {
     try {
       const response = await fetch(`${API_CONFIG.BASE_URL}${endpoint}`, {
         headers: {
+            "Content-Type": "application/json",
           'Authorization': `Bearer ${this.token}`,
           ...options.headers,
         },
@@ -45,9 +46,27 @@ export class ProfileApiService {
     }
   }
 
-  async getUserProfile(): Promise<ApiResponse<UserProfileData>> {
-    return this.makeRequest<UserProfileData>('/user/me');
+  async getUserProfile(entityAccountId: string): Promise<ApiResponse<UserProfileData>> {
+    return this.makeRequest<UserProfileData>(`/user/by-entity/${entityAccountId}`);
   }
+  async getUserReviewsBusiness(entityAccountId: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/user-reviews/business/${entityAccountId}`);
+  }
+
+  async getListBooked(entityAccountId: string): Promise<ApiResponse<any>> {
+    return this.makeRequest<any>(`/booking/receiver/${entityAccountId}?limit=1000`);
+  }
+    async createReview(data: any): Promise<ApiResponse<any>> {
+        return this.makeRequest<any>(`/user-reviews`,{
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+    async deleteReview(id: string): Promise<ApiResponse<any>> {
+        return this.makeRequest<any>(`/user-reviews/${id}`,{
+            method: 'Delete',
+        });
+    }
 
   async updateProfile(updates: UpdateProfileRequestData): Promise<ApiResponse<UserProfileData>> {
     const formData = new FormData();
@@ -74,6 +93,7 @@ export class ProfileApiService {
     if (updates.userName) formData.append("userName", updates.userName);
     if (updates.phone) formData.append("phone", updates.phone);
     if (updates.bio) formData.append("bio", updates.bio);
+    if (updates.gender) formData.append("gender", updates.gender);
 
     return this.makeRequest<UserProfileData>(`/user/profile`, {
       method: "PUT",

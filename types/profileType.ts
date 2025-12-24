@@ -30,12 +30,38 @@ export interface UpdateProfileRequestData {
   userName?: string;
   phone?: string;
   bio?: string;
+  gender?: string;
 }
 
 export interface UploadFile {
   uri: string;   // URI local của ảnh/video
   name: string;  // Tên file, ví dụ "avatar.jpg"
   type: string;  // MIME type, ví dụ "image/jpeg"
+}
+
+export interface PublicProfileResponse {
+  success: boolean;
+  data?: PublicProfileData;
+}
+
+export interface PublicProfileData {
+  entityId: string;
+  entityAccountId: string;
+  targetId: string;
+  targetType: string;
+  type: string;
+  name: string;
+  avatar: string;
+  background: string;
+  role: string;
+  bio: string;
+  contact: Contact;
+}
+
+export interface Contact {
+  email: string;
+  phone: string;
+  address: string;
 }
 
 

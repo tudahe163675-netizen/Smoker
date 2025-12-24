@@ -253,8 +253,6 @@ export class AccountApiService {
     if (data.pricePerHours) requestData.pricePerHours = data.pricePerHours;
     if (data.pricePerSession) requestData.pricePerSession = data.pricePerSession;
 
-    console.log('DJ Registration Request:', requestData);
-
     const response = await this.makeRequest<Account>('/business/register-dj', {
       method: 'POST',
       body: JSON.stringify(requestData),
@@ -297,8 +295,6 @@ export class AccountApiService {
     if (data.gender) requestData.gender = data.gender;
     if (data.pricePerHours) requestData.pricePerHours = data.pricePerHours;
     if (data.pricePerSession) requestData.pricePerSession = data.pricePerSession;
-
-    console.log('Dancer Registration Request:', requestData);
 
     const response = await this.makeRequest<Account>('/business/register-dancer', {
       method: 'POST',
@@ -372,8 +368,6 @@ export class AccountApiService {
         type: data.background.type,
       } as any);
     }
-
-    console.log('Upload Business Images - entityId:', businessId);
 
     // makeRequest will automatically handle FormData and preserve Authorization
     return this.makeRequest<any>('/business/upload', {
