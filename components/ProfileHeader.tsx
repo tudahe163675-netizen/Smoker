@@ -16,6 +16,8 @@ interface ProfileHeaderProps {
   imageLoading: 'avatar' | 'coverImage' | null;
   activeTab: TabType;
   postsCount: number;
+  followerCount: number;
+  followingCount: number;
   onPickImage: (type: 'avatar' | 'coverImage') => void;
   onTabChange: (tab: TabType) => void;
   onFollowersPress: () => void;
@@ -27,6 +29,8 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   imageLoading,
   activeTab,
   postsCount,
+    followerCount,
+    followingCount,
   onPickImage,
   onTabChange,
   onFollowersPress,
@@ -90,7 +94,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           onPress={onFollowersPress}
           activeOpacity={0.7}
         >
-          <Text style={styles.statNumber}>0</Text>
+          <Text style={styles.statNumber}>{followerCount}</Text>
           <Text style={styles.statLabel}>Người theo dõi</Text>
         </TouchableOpacity>
 
@@ -99,7 +103,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           onPress={onFollowingPress}
           activeOpacity={0.7}
         >
-          <Text style={styles.statNumber}>0</Text>
+          <Text style={styles.statNumber}>{followingCount}</Text>
           <Text style={styles.statLabel}>Đang theo dõi</Text>
         </TouchableOpacity>
       </View>

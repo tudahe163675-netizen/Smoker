@@ -224,6 +224,7 @@ export default function TableManagementScreen() {
                   value={newTable.number}
                   onChangeText={(text) => setNewTable(prev => ({ ...prev, number: text }))}
                   placeholder="Nhập số bàn"
+                  placeholderTextColor="#9ca3af"
                   keyboardType="numeric"
                 />
               </View>
@@ -258,6 +259,7 @@ export default function TableManagementScreen() {
                   value={newTable.capacity}
                   onChangeText={(text) => setNewTable(prev => ({ ...prev, capacity: text }))}
                   placeholder="Nhập số người"
+                  placeholderTextColor="#9ca3af"
                   keyboardType="numeric"
                 />
               </View>

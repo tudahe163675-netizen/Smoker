@@ -293,6 +293,7 @@ export default function BookingScreen() {
       <TextInput
         style={styles.textInput}
         placeholder="Yêu cầu đặc biệt (tùy chọn)"
+        placeholderTextColor="#9ca3af"
         value={bookingData.specialRequests}
         onChangeText={(text) => updateBookingData({ specialRequests: text })}
         multiline
@@ -308,6 +309,7 @@ export default function BookingScreen() {
       <TextInput
         style={styles.textInput}
         placeholder="Họ và tên *"
+        placeholderTextColor="#9ca3af"
         value={bookingData.customerInfo.name}
         onChangeText={(text) => updateCustomerInfo({ name: text })}
       />
@@ -315,6 +317,7 @@ export default function BookingScreen() {
       <TextInput
         style={styles.textInput}
         placeholder="Số điện thoại *"
+        placeholderTextColor="#9ca3af"
         value={bookingData.customerInfo.phone}
         onChangeText={(text) => updateCustomerInfo({ phone: text })}
         keyboardType="phone-pad"
@@ -323,6 +326,7 @@ export default function BookingScreen() {
       <TextInput
         style={styles.textInput}
         placeholder="Email (tùy chọn)"
+        placeholderTextColor="#9ca3af"
         value={bookingData.customerInfo.email}
         onChangeText={(text) => updateCustomerInfo({ email: text })}
         keyboardType="email-address"

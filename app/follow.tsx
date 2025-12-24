@@ -1,5 +1,6 @@
 import { FollowUser, UserRole } from '@/constants/followData';
 import { FollowType, useFollow } from '@/hooks/useFollow';
+import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -107,6 +108,7 @@ const TabNavigation = React.memo(({
 export default function FollowScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { authState } = useAuth();
   const initialTab = (params.type as FollowType) || 'followers';
   const userId = (params.userId as string) || '1';
 
@@ -148,13 +150,22 @@ export default function FollowScreen() {
   }, []);
 
   const handleUserPress = useCallback((user: FollowUser) => {
-    router.push({
-      pathname: '/user',
-      params: { id: user.userId }
-    });
-  }, [router]);
+    const targetUserId = user.userId || user.id;
+    
+    // Check if this is current user's own profile
+    if (authState.EntityAccountId && 
+        String(authState.EntityAccountId).toLowerCase() === String(targetUserId).toLowerCase()) {
+      router.push('/(tabs)/profile');
+    } else {
+      router.push({
+        pathname: '/user',
+        params: { id: targetUserId }
+      });
+    }
+  }, [router, authState.EntityAccountId]);
 
   const handleFollowPress = useCallback((user: FollowUser) => {
+    const targetUserId = user.userId || user.id;
     if (user.isFollowing) {
       Alert.alert(
         'Bỏ theo dõi',
@@ -164,33 +175,23 @@ export default function FollowScreen() {
           {
             text: 'Bỏ theo dõi',
             style: 'destructive',
-            onPress: () => currentData.handleUnfollow(user.userId),
+            onPress: () => currentData.handleUnfollow(targetUserId),
           },
         ]
       );
     } else {
-      currentData.handleFollow(user.userId);
+      currentData.handleFollow(targetUserId);
     }
   }, [currentData]);
 
-  const handleRemoveFollower = useCallback((user: FollowUser) => {
-    Alert.alert(
-      'Xóa người theo dõi',
-      `Bạn có chắc muốn xóa ${user.name} khỏi danh sách người theo dõi?\n\n⚠️ Họ sẽ không còn thấy bài viết của bạn nữa (nếu tài khoản riêng tư).`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xóa người theo dõi',
-          style: 'destructive',
-          onPress: () => currentData.handleRemoveFollower(user.userId),
-        },
-      ]
-    );
-  }, [currentData]);
 
   const renderUserItem = useCallback(({ item }: { item: FollowUser }) => {
-    const isLoading = currentData.actionLoading === item.userId;
+    const isLoading = currentData.actionLoading === item.userId || currentData.actionLoading === item.id;
     const roleBadge = getRoleBadge(item.role);
+    
+    // Check if this is current user's own profile
+    const isOwnProfile = authState.EntityAccountId && 
+      (String(authState.EntityAccountId).toLowerCase() === String(item.userId || item.id).toLowerCase());
 
     return (
       <TouchableOpacity
@@ -232,52 +233,43 @@ export default function FollowScreen() {
           )}
         </View>
 
-        <View style={styles.actionButtons}>
-          {activeTab === 'followers' && (
+        {!isOwnProfile && (
+          <View style={styles.actionButtons}>
             <TouchableOpacity
-              style={styles.removeButton}
-              onPress={() => handleRemoveFollower(item)}
+              style={[
+                styles.followButton,
+                item.isFollowing && styles.followingButton,
+              ]}
+              onPress={() => handleFollowPress(item)}
               disabled={isLoading}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <Ionicons name="person-remove" size={18} color="#ef4444" />
+              {isLoading ? (
+                <ActivityIndicator size="small" color={item.isFollowing ? '#6b7280' : '#fff'} />
+              ) : (
+                <>
+                  <Ionicons 
+                    name={item.isFollowing ? 'checkmark-circle' : 'add-circle'} 
+                    size={16} 
+                    color={item.isFollowing ? '#6b7280' : '#fff'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text
+                    style={[
+                      styles.followButtonText,
+                      item.isFollowing && styles.followingButtonText,
+                    ]}
+                  >
+                    {item.isFollowing ? 'Đang follow' : 'Follow'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={[
-              styles.followButton,
-              item.isFollowing && styles.followingButton,
-            ]}
-            onPress={() => handleFollowPress(item)}
-            disabled={isLoading}
-            activeOpacity={0.8}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={item.isFollowing ? '#6b7280' : '#fff'} />
-            ) : (
-              <>
-                <Ionicons 
-                  name={item.isFollowing ? 'checkmark-circle' : 'add-circle'} 
-                  size={16} 
-                  color={item.isFollowing ? '#6b7280' : '#fff'}
-                  style={{ marginRight: 4 }}
-                />
-                <Text
-                  style={[
-                    styles.followButtonText,
-                    item.isFollowing && styles.followingButtonText,
-                  ]}
-                >
-                  {item.isFollowing ? 'Đang follow' : 'Follow'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
       </TouchableOpacity>
     );
-  }, [activeTab, currentData.actionLoading, handleUserPress, handleFollowPress, handleRemoveFollower, getRoleBadge]);
+  }, [activeTab, currentData.actionLoading, currentData.handleFollow, currentData.handleUnfollow, handleUserPress, handleFollowPress, getRoleBadge, authState.EntityAccountId]);
 
   const renderEmptyState = useCallback(() => (
     <View style={styles.emptyContainer}>
@@ -360,7 +352,7 @@ export default function FollowScreen() {
         ListHeaderComponent={ListHeaderComponent}
         data={currentData.users}
         renderItem={renderUserItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id || item.userId}
         contentContainerStyle={[
           styles.listContent,
           currentData.users.length === 0 && styles.listContentEmpty,
@@ -565,16 +557,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginLeft: 8,
-  },
-  removeButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1.5,
-    borderColor: '#fecaca',
   },
   followButton: {
     flexDirection: 'row',

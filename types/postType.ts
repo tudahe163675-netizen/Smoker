@@ -23,6 +23,73 @@ export interface Comment {
   createdAt: string;
 }
 
+
+export interface Author {
+  entityAccountId: string;
+  entityId: string;
+  entityType: string;
+  name: string;
+  avatar: string;
+}
+
+export interface PostStats {
+  likeCount: number;
+  commentCount: number;
+  shareCount: number;
+  viewCount: number;
+  isLikedByMe: boolean;
+}
+
+export interface TopComment {
+  id: string;
+  content: string;
+  authorName: string;
+  authorAvatar: string;
+  isAnonymous: boolean;
+  anonymousIndex?: number | null;
+  likeCount: number;
+  replyCount: number;
+  author: Author;
+  stats: {
+    likeCount: number;
+    replyCount: number;
+    isLikedByMe: boolean;
+  };
+  createdAt: string;
+}
+
+export interface OriginalPost {
+  id: string;
+  _id?: string;
+  content: string;
+  author: Author;
+  medias?: MediaItem[];
+  mediaIds?: MediaItem[];
+  createdAt: string;
+  [key: string]: any;
+}
+
+export interface AnonymousIdentityMap {
+  hasAnonymous: boolean;
+  identityMapSize?: number;
+}
+
+export interface Music {
+  id: string;
+  title: string;
+  artistName: string;
+  artist?: string;
+  audioUrl: string;
+  thumbnailUrl?: string | null;
+  coverUrl?: string | null;
+  thumbnail?: string | null;
+  duration?: number | null;
+  purchaseLink?: string | null;
+  hashTag?: string | null;
+  details?: string | null;
+  genre?: string | null;
+}
+
 export interface MediaItem {
   _id: string;
   id?: string;
@@ -44,47 +111,69 @@ export interface MediaItem {
 }
 
 export interface PostData {
-  _id: string;
-  accountId: string;
-  entityAccountId: string;
-  entityId: string;
-  entityType: string;
-  barId: string | null;
+  // Primary ID (new format)
+  id?: string;
+  // Legacy ID (backward compatibility)
+  _id?: string;
+  
+  // Account info (legacy)
+  accountId?: string;
+  entityAccountId?: string;
+  entityId?: string;
+  entityType?: string;
+  
+  barId?: string | null;
   title?: string;
   content: string;
   images?: string | Record<string, { url: string; caption: string }>; // Có thể là string hoặc object
   videos?: Record<string, { url: string; caption: string }>;
   type: string;
-  expiredAt: string | null;
-  musicId: string | null;
-  songId: string | null;
-  mediaIds: MediaItem[]; // Array of media objects, không phải string[]
-  medias?: MediaItem[]; // Medias array từ API
-  trendingScore: number;
-  views: number;
-  shares: number;
-  repostedFromId: string | null;
-  status: string;
-  trashedAt: string | null;
-  trashedBy: string | null;
-  audioDuration: number | null;
-  audioStartOffset: number | null;
+  expiredAt?: string | null;
+  musicId?: string | null;
+  songId?: string | null;
+  mediaIds?: MediaItem[]; // Array of media objects, không phải string[]
+  medias?: MediaItem[]; // Medias array từ API (new format)
+  trendingScore?: number;
+  views?: number;
+  shares?: number;
+  repostedFromId?: string | null;
+  status?: string;
+  trashedAt?: string | null;
+  trashedBy?: string | null;
+  audioDuration?: number | null;
+  audioStartOffset?: number | null;
   createdAt: string;
-  updatedAt: string;
-  __v: number;
+  updatedAt?: string;
+  __v?: number;
 
-  // Author info
-  authorName: string;
-  authorAvatar: string;
-  authorEntityName: string;
-  authorEntityAvatar: string;
-  authorEntityType: string;
-  authorEntityId: string;
-  authorEntityAccountId: string;
+  // Author info (new format)
+  author?: Author;
+  // Legacy author info (backward compatibility)
+  authorName?: string;
+  authorAvatar?: string;
+  authorEntityName?: string;
+  authorEntityAvatar?: string;
+  authorEntityType?: string;
+  authorEntityId?: string;
+  authorEntityAccountId?: string;
 
-  // Likes & comments
-  likes: Record<string, Like>;
-  comments: Record<string, Comment>;
+  // Stats (new format)
+  stats?: PostStats;
+  // Legacy likes & comments (backward compatibility)
+  likes?: Record<string, Like>;
+  comments?: Record<string, Comment>;
+  
+  // Top comments (new format)
+  topComments?: TopComment[];
+  
+  // Original post for reposts
+  originalPost?: OriginalPost;
+  
+  // Anonymous identity map
+  anonymousIdentityMap?: AnonymousIdentityMap;
+  
+  // Music
+  music?: Music;
 }
 
 export interface CreatePostData {
