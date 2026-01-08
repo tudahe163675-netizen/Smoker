@@ -204,7 +204,7 @@ export default function FeedScreen() {
         setLoadingMore(true);
       }
 
-      const res = await barApi.getBars(pageNum, 10);
+      const res = await barApi.getBars(pageNum, 100);
 
       if ( res.data) {
         const newBars = res.data;

@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Image,
   StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
   View,
@@ -15,6 +16,8 @@ interface CommentInputProps {
   onChange: (text: string) => void;
   onSubmit: () => void;
   submitting: boolean;
+  replyingTo?: { commentId: string; replyId?: string; authorName: string } | null;
+  onCancelReply?: () => void;
 }
 
 export const CommentInput: React.FC<CommentInputProps> = ({
@@ -22,53 +25,85 @@ export const CommentInput: React.FC<CommentInputProps> = ({
   onChange,
   onSubmit,
   submitting,
+  replyingTo,
+  onCancelReply,
 }) => {
   const { authState } = useAuth();
   const authorAvatar = authState.avatar;
 
   return (
     <View style={styles.commentInputContainer}>
-      <Image
-        source={{ uri: authorAvatar ?? 'https://i.pravatar.cc/100?img=10' }}
-        style={styles.commentInputAvatar}
-      />
-      <TextInput
-        style={styles.commentInput}
-        placeholder="Viết bình luận..."
-        value={value}
-        onChangeText={onChange}
-        multiline
-        maxLength={500}
-      />
-      <TouchableOpacity
-        style={[
-          styles.sendButton,
-          (!value.trim() || submitting) && styles.sendButtonDisabled
-        ]}
-        onPress={onSubmit}
-        disabled={!value.trim() || submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <Ionicons name="send" size={20} color="#fff" />
-        )}
-      </TouchableOpacity>
+      {replyingTo && (
+        <View style={styles.replyingToContainer}>
+          <Text style={styles.replyingToText}>
+            Đang trả lời {replyingTo.authorName}...
+          </Text>
+          <TouchableOpacity onPress={onCancelReply} style={styles.cancelReplyButton}>
+            <Ionicons name="close-circle" size={20} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
+      )}
+      <View style={styles.inputRow}>
+        <Image
+          source={{ uri: authorAvatar ?? 'https://i.pravatar.cc/100?img=10' }}
+          style={styles.commentInputAvatar}
+        />
+        <TextInput
+          style={styles.commentInput}
+          placeholder={replyingTo ? `Trả lời ${replyingTo.authorName}...` : "Viết bình luận..."}
+          value={value}
+          onChangeText={onChange}
+          multiline
+          maxLength={500}
+        />
+        <TouchableOpacity
+          style={[
+            styles.sendButton,
+            (!value.trim() || submitting) && styles.sendButtonDisabled
+          ]}
+          onPress={onSubmit}
+          disabled={!value.trim() || submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="send" size={20} color="#fff" />
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 export const styles = StyleSheet.create({
-  // Comment Input styles
   commentInputContainer: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  replyingToContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: '#f0f2f5',
+  },
+  replyingToText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+  },
+  cancelReplyButton: {
+    padding: 4,
+  },
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 20,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderColor: '#e5e7eb',
   },
   commentInputAvatar: {
     width: 32,

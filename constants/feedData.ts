@@ -1,7 +1,8 @@
 import { CommentData } from "@/types/commentType";
+import { AnonymousIdentityMap, Author, Like, MediaItem, OriginalPost, PostStats, TopComment } from "@/types/postType";
 
 export interface User {
-  id: string;
+  _id: string;
   name: string;
   username: string;
   avatar: string;
@@ -11,16 +12,15 @@ export interface User {
   following: number;
   posts: number;
   isFollowing?: boolean;
+  role?: string;
   website?: string;
   tiktok?: string;
   facebook?: string;
   instagram?: string;
-  entityAccountId?: string;
-}
-
-export interface Like {
-  accountId: string;
-  TypeRole: string;
+  entityAccountId: string;
+  type: string;
+  targetId?: string;
+  background?: string;
 }
 
 export interface Comment {
@@ -35,21 +35,41 @@ export interface Comment {
 }
 
 export interface Post {
-  _id: string;
-  // userId: string;
-  // user: User;
+  // Primary ID (new format)
+  id?: string;
+  // Legacy ID (backward compatibility)
+  _id?: string;
+
   content: string;
-  images: string;
-  likes: Record<string, Like>;
-  // isLiked: boolean;
-  comments: Record<string, CommentData>;
-  // commentsCount: number;
-  // shares: number;
+  images?: string;
+
+  // Stats (new format)
+  stats?: PostStats;
+  // Legacy likes & comments (backward compatibility)
+  likes?: Record<string, Like>;
+  comments?: Record<string, CommentData>;
+
   createdAt: string;
-  // location?: string;
-  authorAvatar: string;
-  accountId: string;
-  authorName: string
+
+  // Author info (new format)
+  author?: Author;
+  // Legacy author info (backward compatibility)
+  authorAvatar?: string;
+  accountId?: string;
+  authorName?: string;
+
+  // Media
+  mediaIds?: MediaItem[];
+  medias?: MediaItem[];
+
+  // Top comments (new format)
+  topComments?: TopComment[];
+
+  // Original post for reposts
+  originalPost?: OriginalPost;
+
+  // Anonymous identity map
+  anonymousIdentityMap?: AnonymousIdentityMap;
 }
 
 export interface CreatePostData {

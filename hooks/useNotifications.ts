@@ -1,5 +1,6 @@
-import { Notification, notificationsData } from '@/constants/notiData';
-import { notificationApi } from '@/services/notificationApi';
+import { Notification } from '@/constants/notiData';
+import { useAuth } from "@/hooks/useAuth";
+import { NotificationApiService } from "@/services/notificationApi";
 import { useCallback, useEffect, useState } from 'react';
 
 export const useNotifications = () => {
@@ -7,19 +8,21 @@ export const useNotifications = () => {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { authState } = useAuth();
+  const accountId = authState.EntityAccountId;
+  const token = authState.token;
 
+  const notificationApi = new NotificationApiService(token!!);
   // Lấy notifications từ API
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await notificationApi.getNotifications();
+      const response = await notificationApi.getNotifications(accountId!!);
       if (response.success && response.data) {
         setNotifications(response.data);
-        setUnreadCount(response.data.filter((n) => !n.isRead).length);
+        setUnreadCount(response.data.filter((n) => !(n.status === "Read")).length);
       } else {
-        setNotifications(notificationsData);
-        setUnreadCount(notificationsData.filter((n) => !n.isRead).length);
         setError(response.message || 'Không thể tải thông báo');
       }
     } catch (err) {
@@ -28,11 +31,11 @@ export const useNotifications = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [accountId]);
 
   // Thêm notification mới
   const addNotification = useCallback(
-    async (notification: Omit<Notification, 'id' | 'time' | 'isRead'>) => {
+    async (notification: Omit<Notification, '_id' | 'time' | 'isRead'>) => {
       try {
         const response = await notificationApi.createNotification({
           ...notification,
@@ -56,7 +59,7 @@ export const useNotifications = () => {
   const markAsRead = useCallback(
     async (id: string) => {
       try {
-        const response = await notificationApi.markAsRead(id);
+        const response = await notificationApi.markAsRead(id, accountId!!);
         if (response.success) {
           await fetchNotifications(); // Làm mới danh sách sau khi cập nhật
         } else {
@@ -73,7 +76,7 @@ export const useNotifications = () => {
   // Đánh dấu tất cả notifications đã đọc
   const markAllAsRead = useCallback(async () => {
     try {
-      const response = await notificationApi.markAllAsRead();
+      const response = await notificationApi.markAllAsRead(accountId!!);
       if (response.success) {
         await fetchNotifications(); // Làm mới danh sách sau khi cập nhật
       } else {
@@ -100,10 +103,10 @@ export const useNotifications = () => {
     }
   }, [fetchNotifications]);
 
-  // Tải notifications khi hook được mount
   useEffect(() => {
+    if (!accountId || !token) return;
     fetchNotifications();
-  }, [fetchNotifications]);
+  }, [fetchNotifications, token, accountId]);
 
   return {
     notifications,

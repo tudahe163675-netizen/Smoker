@@ -1,3 +1,4 @@
+import { UserEntity } from '@/constants/authData';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
@@ -44,16 +45,22 @@ interface BusinessRegistrationModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (type: BusinessType, data: BusinessRegistrationData) => Promise<void>;
+  entities: UserEntity[];
 }
 
 export const BusinessRegistrationModal: React.FC<BusinessRegistrationModalProps> = ({
   visible,
   onClose,
   onSubmit,
+  entities
 }) => {
   const [step, setStep] = useState<'select' | 'form'>('select');
   const [businessType, setBusinessType] = useState<BusinessType>('dj');
   const [loading, setLoading] = useState(false);
+
+  const hasDJ = entities.some(entity => entity.type === 'BusinessAccount' && entity.role === 'DJ');
+  const hasDancer = entities.some(entity => entity.type === 'BusinessAccount' && entity.role === 'Dancer');
+  const hasBothAccounts = hasDJ && hasDancer;
 
   // Form data
   const [formData, setFormData] = useState<BusinessRegistrationData>({
@@ -173,46 +180,101 @@ export const BusinessRegistrationModal: React.FC<BusinessRegistrationModalProps>
     }
   };
 
-  const renderSelectType = () => (
-    <View style={styles.selectContainer}>
-      <Text style={styles.selectTitle}>Chọn loại tài khoản</Text>
-      <Text style={styles.selectSubtitle}>
-        Bạn muốn đăng ký tài khoản kinh doanh nào?
-      </Text>
+  const renderSelectType = () => {
+    // If user already has both account types
+    if (hasBothAccounts) {
+      return (
+        <View style={styles.selectContainer}>
+          <View style={styles.maxAccountsContainer}>
+            <View style={styles.maxAccountsIcon}>
+              <Ionicons name="checkmark-circle" size={64} color="#10b981" />
+            </View>
+            <Text style={styles.maxAccountsTitle}>
+              Đã đăng ký đầy đủ
+            </Text>
+            <Text style={styles.maxAccountsDescription}>
+              Bạn đã có tài khoản DJ và Dancer. Mỗi người dùng chỉ được tạo tối đa 1 tài khoản mỗi loại.
+            </Text>
+          </View>
+        </View>
+      );
+    }
 
-      <TouchableOpacity
-        style={styles.typeCard}
-        onPress={() => handleSelectType('dj')}
-      >
-        <View style={styles.typeIcon}>
-          <Ionicons name="musical-notes" size={32} color="#2563eb" />
-        </View>
-        <View style={styles.typeContent}>
-          <Text style={styles.typeTitle}>DJ</Text>
-          <Text style={styles.typeDescription}>
-            Đăng ký làm DJ chuyên nghiệp, nhận booking từ các quán bar
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color="#9ca3af" />
-      </TouchableOpacity>
+    return (
+      <View style={styles.selectContainer}>
+        <Text style={styles.selectTitle}>Chọn loại tài khoản</Text>
+        <Text style={styles.selectSubtitle}>
+          Bạn muốn đăng ký tài khoản kinh doanh nào?
+        </Text>
 
-      <TouchableOpacity
-        style={styles.typeCard}
-        onPress={() => handleSelectType('dancer')}
-      >
-        <View style={styles.typeIcon}>
-          <Ionicons name="fitness" size={32} color="#8b5cf6" />
-        </View>
-        <View style={styles.typeContent}>
-          <Text style={styles.typeTitle}>Dancer</Text>
-          <Text style={styles.typeDescription}>
-            Đăng ký làm vũ công chuyên nghiệp, biểu diễn tại các sự kiện
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color="#9ca3af" />
-      </TouchableOpacity>
-    </View>
-  );
+        {!hasDJ && (
+          <TouchableOpacity
+            style={styles.typeCard}
+            onPress={() => handleSelectType('dj')}
+          >
+            <View style={styles.typeIcon}>
+              <Ionicons name="musical-notes" size={32} color="#2563eb" />
+            </View>
+            <View style={styles.typeContent}>
+              <Text style={styles.typeTitle}>DJ</Text>
+              <Text style={styles.typeDescription}>
+                Đăng ký làm DJ chuyên nghiệp, nhận booking từ các quán bar
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#9ca3af" />
+          </TouchableOpacity>
+        )}
+
+        {hasDJ && (
+          <View style={[styles.typeCard, styles.typeCardDisabled]}>
+            <View style={[styles.typeIcon, styles.typeIconDisabled]}>
+              <Ionicons name="musical-notes" size={32} color="#9ca3af" />
+            </View>
+            <View style={styles.typeContent}>
+              <Text style={[styles.typeTitle, styles.typeTextDisabled]}>DJ</Text>
+              <Text style={styles.typeDescription}>
+                Bạn đã có tài khoản DJ
+              </Text>
+            </View>
+            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+          </View>
+        )}
+
+        {!hasDancer && (
+          <TouchableOpacity
+            style={styles.typeCard}
+            onPress={() => handleSelectType('dancer')}
+          >
+            <View style={styles.typeIcon}>
+              <Ionicons name="fitness" size={32} color="#8b5cf6" />
+            </View>
+            <View style={styles.typeContent}>
+              <Text style={styles.typeTitle}>Dancer</Text>
+              <Text style={styles.typeDescription}>
+                Đăng ký làm vũ công chuyên nghiệp, biểu diễn tại các sự kiện
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#9ca3af" />
+          </TouchableOpacity>
+        )}
+
+        {hasDancer && (
+          <View style={[styles.typeCard, styles.typeCardDisabled]}>
+            <View style={[styles.typeIcon, styles.typeIconDisabled]}>
+              <Ionicons name="fitness" size={32} color="#9ca3af" />
+            </View>
+            <View style={styles.typeContent}>
+              <Text style={[styles.typeTitle, styles.typeTextDisabled]}>Dancer</Text>
+              <Text style={styles.typeDescription}>
+                Bạn đã có tài khoản Dancer
+              </Text>
+            </View>
+            <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderForm = () => (
     <KeyboardAvoidingView
@@ -587,6 +649,55 @@ const styles = StyleSheet.create({
   typeDescription: {
     fontSize: 14,
     color: '#6b7280',
+  },
+
+  // Disabled Type Card
+  typeCardDisabled: {
+    backgroundColor: '#f9fafb',
+    borderColor: '#e5e7eb',
+    opacity: 0.7,
+  },
+  typeIconDisabled: {
+    backgroundColor: '#f3f4f6',
+  },
+  typeTextDisabled: {
+    color: '#9ca3af',
+  },
+
+  // Max Accounts Screen
+  maxAccountsContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  maxAccountsIcon: {
+    marginBottom: 24,
+  },
+  maxAccountsTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  maxAccountsDescription: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  maxAccountsButton: {
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  maxAccountsButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 
   // Form Screen

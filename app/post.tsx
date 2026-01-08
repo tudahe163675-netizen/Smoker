@@ -1,28 +1,101 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Share,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 import { CommentInput } from '@/components/post/CommentInput';
 import { CommentsList } from '@/components/post/CommentsList';
 import { EditPostModal } from '@/components/post/EditPostModal';
-import { PostContent } from '@/components/post/PostContent';
 import { PostMenu } from '@/components/post/PostMenu';
+import RenderPost from '@/components/post/PostContent';
 import { useAuth } from '@/hooks/useAuth';
 import { usePostDetails } from '@/hooks/usePost';
+import { FeedApiService } from "@/services/feedApi";
+
+// Skeleton Loading Component
+const SkeletonLoader = () => {
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const opacity = shimmerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.3, 0.7],
+  });
+
+  return (
+    <View style={styles.skeletonContainer}>
+      {/* Skeleton Post Header */}
+      <View style={styles.skeletonPost}>
+        <View style={styles.skeletonPostHeader}>
+          <Animated.View style={[styles.skeletonAvatar, { opacity }]} />
+          <View style={styles.skeletonPostInfo}>
+            <Animated.View style={[styles.skeletonText, { width: 120, height: 16, opacity }]} />
+            <Animated.View style={[styles.skeletonText, { width: 80, height: 12, marginTop: 6, opacity }]} />
+          </View>
+        </View>
+        
+        {/* Skeleton Post Content */}
+        <Animated.View style={[styles.skeletonText, { width: '100%', height: 16, marginTop: 16, opacity }]} />
+        <Animated.View style={[styles.skeletonText, { width: '90%', height: 16, marginTop: 8, opacity }]} />
+        <Animated.View style={[styles.skeletonText, { width: '70%', height: 16, marginTop: 8, opacity }]} />
+        
+        {/* Skeleton Post Image */}
+        <Animated.View style={[styles.skeletonImage, { opacity }]} />
+        
+        {/* Skeleton Actions */}
+        <View style={styles.skeletonActions}>
+          <Animated.View style={[styles.skeletonButton, { opacity }]} />
+          <Animated.View style={[styles.skeletonButton, { opacity }]} />
+          <Animated.View style={[styles.skeletonButton, { opacity }]} />
+        </View>
+      </View>
+
+      {/* Skeleton Comments Section */}
+      <View style={styles.skeletonCommentsSection}>
+        <Animated.View style={[styles.skeletonText, { width: 100, height: 18, marginBottom: 16, opacity }]} />
+        
+        {[1, 2, 3].map((i) => (
+          <View key={i} style={styles.skeletonComment}>
+            <Animated.View style={[styles.skeletonCommentAvatar, { opacity }]} />
+            <View style={styles.skeletonCommentContent}>
+              <Animated.View style={[styles.skeletonText, { width: 100, height: 14, opacity }]} />
+              <Animated.View style={[styles.skeletonText, { width: '100%', height: 14, marginTop: 8, opacity }]} />
+              <Animated.View style={[styles.skeletonText, { width: '80%', height: 14, marginTop: 6, opacity }]} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+};
 
 export default function PostDetailScreen() {
   const router = useRouter();
@@ -36,58 +109,54 @@ export default function PostDetailScreen() {
     likePost,
     deletePost,
     updatePost,
+    fetchPostDetails,
+    addReply,
+    likeReply,
   } = usePostDetails(id!);
   const { authState } = useAuth();
   const currentUserId = authState.currentId;
 
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ commentId: string; replyId?: string; authorName: string } | null>(null);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [editImages, setEditImages] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const moreButtonRef = useRef<View>(null);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+const feedApi = new FeedApiService(authState.token!);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchPostDetails(false);
+    setRefreshing(false);
+  };
 
   const handleSubmitComment = async () => {
     if (!commentText.trim() || !post) return;
     
     setSubmittingComment(true);
     try {
-      const success = await addComment(commentText.trim());
+      let success = false;
+      if (replyingTo) {
+        success = await addReply(replyingTo.commentId, replyingTo.replyId, commentText.trim());
+      } else {
+        success = await addComment(commentText.trim());
+      }
 
       if (success) {
         setCommentText('');
+        setReplyingTo(null);
+      } else {
+        Alert.alert('Lỗi', replyingTo ? 'Không thể gửi phản hồi' : 'Không thể gửi bình luận');
       }
     } catch (error) {
-      Alert.alert('Lỗi', 'Không thể gửi bình luận');
+      Alert.alert('Lỗi', replyingTo ? 'Không thể gửi phản hồi' : 'Không thể gửi bình luận');
     } finally {
       setSubmittingComment(false);
-    }
-  };
-
-  const handleLikePost = () => {
-    if (post) {
-      likePost();
-    }
-  };
-
-  const handleShare = async () => {
-    if (!post) return;
-
-    try {
-      const result = await Share.share({
-        message: `${post.content}\n\nXem thêm tại Smoker App`,
-        title: 'Chia sẻ bài viết',
-        url: `https://smoker.app/post/${post._id}`,
-      });
-
-      if (result.action === Share.sharedAction) {
-        Alert.alert('Thành công', 'Đã chia sẻ bài viết');
-      }
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không thể chia sẻ bài viết');
     }
   };
 
@@ -125,7 +194,6 @@ export default function PostDetailScreen() {
   const handleEditPost = () => {
     if (!post) return;
     setEditContent(post.content);
-    // setEditImages(post.images);
     closeMenu();
     setTimeout(() => setIsEditing(true), 200);
   };
@@ -134,15 +202,6 @@ export default function PostDetailScreen() {
     if (!post) return false;
 
     try {
-      // const success = await updatePost(post.id, {
-      //   content: content.trim(),
-      //   images: images,
-      // });
-      // if (success) {
-      //   setIsEditing(false);
-      //   Alert.alert('Thành công', 'Bài viết đã được cập nhật');
-      //   return true;
-      // }
       return false;
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể cập nhật bài viết');
@@ -152,36 +211,7 @@ export default function PostDetailScreen() {
 
   const handleDeletePost = () => {
     if (!post) return;
-
     closeMenu();
-
-    // setTimeout(() => {
-    //   Alert.alert(
-    //     'Xóa bài viết',
-    //     'Bạn có chắc chắn muốn xóa bài viết này?',
-    //     [
-    //       { text: 'Hủy', style: 'cancel' },
-    //       {
-    //         text: 'Xóa',
-    //         style: 'destructive',
-    //         onPress: async () => {
-    //           try {
-    //             const success = await deletePost(post._id);
-    //             if (success) {
-    //               router.back();
-    //               setTimeout(() => {
-    //                 Alert.alert('Thành công', 'Bài viết đã được xóa');
-    //               }, 300);
-    //             }
-    //           } catch (error) {
-    //             Alert.alert('Lỗi', 'Không thể xóa bài viết');
-    //           }
-    //         },
-    //       },
-    //     ],
-    //     { cancelable: true }
-    //   );
-    // }, 200);
   };
 
   if (loading) {
@@ -194,10 +224,7 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
           <View style={styles.headerRight} />
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Đang tải...</Text>
-        </View>
+        <SkeletonLoader />
       </View>
     );
   }
@@ -220,7 +247,7 @@ export default function PostDetailScreen() {
     );
   }
 
-  const isPostOwner = post.accountId === currentUserId;
+  const isPostOwner = (post.author?.entityAccountId || post.accountId) === currentUserId;
 
   return (
     <View style={styles.container}>
@@ -268,18 +295,37 @@ export default function PostDetailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          <PostContent
-            post={post}
-            onUserPress={handleUserPress}
-            onLike={handleLikePost}
-            onShare={handleShare}
-          />
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#2563eb']}
+              tintColor="#2563eb"
+            />
+          }
+        >
+          {post && (
+            <RenderPost
+              item={post}
+              currentId={currentUserId || ''}
+              currentEntityAccountId={authState.EntityAccountId}
+              feedApiService={feedApi}
+              customCss={false}
+              disableBtn={true}
+            />
+          )}
 
           <CommentsList
-            comments={post.comments}
+            comments={comments}
             onUserPress={handleUserPress}
             onLikeComment={likeComment}
+            onReply={(commentId, replyId, authorName) => {
+              setReplyingTo({ commentId, replyId, authorName: authorName || 'Người dùng' });
+            }}
+            onLikeReply={likeReply}
           />
         </ScrollView>
 
@@ -288,6 +334,8 @@ export default function PostDetailScreen() {
           onChange={setCommentText}
           onSubmit={handleSubmitComment}
           submitting={submittingComment}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
         />
       </KeyboardAvoidingView>
     </View>
@@ -351,5 +399,73 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6b7280',
+  },
+
+  // Skeleton styles
+  skeletonContainer: {
+    flex: 1,
+    backgroundColor: '#f0f2f5',
+  },
+  skeletonPost: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginBottom: 8,
+  },
+  skeletonPostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#e5e7eb',
+  },
+  skeletonPostInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  skeletonText: {
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+  },
+  skeletonImage: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  skeletonActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  skeletonButton: {
+    width: 80,
+    height: 36,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 8,
+  },
+  skeletonCommentsSection: {
+    backgroundColor: '#fff',
+    padding: 16,
+  },
+  skeletonComment: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  skeletonCommentAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e5e7eb',
+  },
+  skeletonCommentContent: {
+    marginLeft: 12,
+    flex: 1,
   },
 });

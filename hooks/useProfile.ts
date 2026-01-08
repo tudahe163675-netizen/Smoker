@@ -1,3 +1,5 @@
+import { Post } from "@/constants/feedData";
+import { FeedApiService } from "@/services/feedApi";
 import { ProfileApiService } from '@/services/profileApi';
 import { UploadFile, UserProfileData } from '@/types/profileType';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,33 +10,71 @@ type FieldValue = string | UploadFile;
 
 export const useProfile = () => {
   const [profile, setProfile] = useState<UserProfileData>();
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const { authState } = useAuth();
+  const [followers, setFollowers] = useState<any[]>([]);
+  const [following, setFollowing] = useState<any[]>([]);
+  const { authState, updateAuthState } = useAuth();
   const token = authState.token;
   const profileApi = new ProfileApiService(token!!);
+  const feedApi = new FeedApiService(token!!);
 
   const fetchProfile = useCallback(async () => {
     if (!token) return;
+
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await profileApi.getUserProfile();
+      const userId = authState.EntityAccountId!;
+      const [postsResponse, followersResponse, followingResponse] = await Promise.all([
+        feedApi.getUserPosts(userId),
+        feedApi.getFollowers(userId),
+        feedApi.getFollowing(userId)
+      ]);
+      if (followingResponse?.data) {
+        setFollowing(followingResponse.data);
+      }
+      if (followersResponse?.data) {
+        setFollowers(followersResponse.data);
+      }
+      const response = await profileApi.getUserProfile(userId);
 
       if (response.data) {
-        setProfile(response.data);
+        const data = response.data;
+
+        const mappedProfile: UserProfileData = {
+          id: data.entityAccountId || data.entityId,
+          email: data.contact?.email || '',
+          userName: data.name || '',
+          role: data.role as Role,
+          avatar: data.avatar || '',
+          background: data.background || '',
+          coverImage: '',
+          phone: data.contact?.phone || '',
+          address: data.contact?.address || '',
+          addressData: null,
+          bio: data.bio || '',
+          gender: null,
+          status: 'active',
+          createdAt: '',
+        };
+
+        setProfile(mappedProfile);
       } else {
         setError(response.message);
+      }
+      if (postsResponse.data) {
+        setPosts(postsResponse.data);
       }
     } catch (err) {
       setError('Không thể tải thông tin hồ sơ');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, authState.EntityAccountId]);
 
   // Cập nhật các trường text
   const updateProfileField = async (field: string, value: string): Promise<boolean> => {
@@ -89,6 +129,11 @@ export const useProfile = () => {
 
       if (response.data) {
         setProfile(response.data);
+        if (type === 'avatar') {
+          updateAuthState({
+            avatar: response.data.avatar,
+          });
+        }
         return true;
       } else {
         Alert.alert('Cảnh báo', 'Cập nhật ảnh offline. Ảnh sẽ được tải lên khi có kết nối.');
@@ -107,7 +152,7 @@ export const useProfile = () => {
 
   const setFullProfile = (newProfile: UserProfileData) => {
     setLoading(false)
-    
+
     setProfile(prev => ({
       ...prev,
       ...newProfile,
@@ -122,6 +167,9 @@ export const useProfile = () => {
 
   return {
     profile,
+    posts,
+    followers,
+    following,
     loading,
     error,
     fetchProfile,

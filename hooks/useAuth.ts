@@ -1,4 +1,5 @@
 import { AuthState, Role } from '@/constants/authData';
+import { useAuthContext } from '@/contexts/AuthProvider';
 import { fetchUserEntities, loginApi, upgradeRoleApi } from '@/services/authApi';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -7,16 +8,8 @@ import { Alert } from 'react-native';
 
 export const useAuth = () => {
   const router = useRouter();
-  const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    userEmail: undefined,
-    role: undefined,
-    token: undefined,
-    currentId: undefined,
-    avatar: undefined,
-    type: undefined,
-    EntityAccountId: undefined,
-  });
+  const { authState, setAuthState } = useAuthContext();
+  const [isLoading, setIsLoading] = useState(false);
 
   // Load state login nếu user nhớ đăng nhập
   useEffect(() => {
@@ -28,6 +21,7 @@ export const useAuth = () => {
       const savedAvatar = await AsyncStorage.getItem('avatar');
       const savedType = await AsyncStorage.getItem('type');
       const savedEntityAccountId = await AsyncStorage.getItem('EntityAccountId');
+      const saveEntities = await AsyncStorage.getItem('entities');
 
       if (savedEmail && savedToken) {
         setAuthState({
@@ -39,6 +33,7 @@ export const useAuth = () => {
           type: savedType || undefined,
           EntityAccountId: savedEntityAccountId || undefined,
           role: savedRole || Role.CUSTOMER,
+          entities: saveEntities ? JSON.parse(saveEntities) : [],
         });
       }
     };
@@ -47,19 +42,21 @@ export const useAuth = () => {
 
 
   const login = async (email: string, password: string, rememberMe: boolean) => {
+    setIsLoading(true);
     try {
       const res = await loginApi(email, password);
 
       if (!res.token) {
-        Alert.alert('Đăng nhập thất bại', res.message ?? 'Tên đăng nhập hoặc mật khẩu không đúng');
+        Alert.alert('Đăng nhập thất bại', res.message ?? 'Email hoặc mật khẩu không đúng');
         return;
       }
 
       const token = res.token;
       const currentId = res.user.id;
-      const role: Role = res.user?.role || Role.CUSTOMER;
+      const role = res.user?.role;
 
       const entities = await fetchUserEntities(currentId, token);
+
       const mainEntity = entities[0];
 
       const avatar = mainEntity.avatar;
@@ -75,6 +72,7 @@ export const useAuth = () => {
         avatar,
         type,
         EntityAccountId,
+        entities,
       };
 
       setAuthState(newAuth);
@@ -87,14 +85,20 @@ export const useAuth = () => {
         if (avatar) await AsyncStorage.setItem('avatar', avatar);
         if (type) await AsyncStorage.setItem('type', type);
         if (EntityAccountId) await AsyncStorage.setItem('EntityAccountId', EntityAccountId);
+        await AsyncStorage.setItem('entities', JSON.stringify(entities));
       }
 
+      if (res.needProfile){
+        router.replace('/auth/completeProfile');
+        return;
+      }
       router.replace('/(tabs)');
 
     } catch (error) {
       console.log(error);
-
       Alert.alert('Lỗi', 'Không thể kết nối đến server');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -103,6 +107,7 @@ export const useAuth = () => {
       Alert.alert('Lỗi', 'Không tìm thấy thông tin người dùng');
       return;
     }
+    setIsLoading(true);
     try {
       const response = await upgradeRoleApi(authState.userEmail, newRole);
       if (response.success) {
@@ -118,12 +123,56 @@ export const useAuth = () => {
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể kết nối server');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchEntities = async () => {
+    setIsLoading(true);
+    try {
+      const token = authState.token;
+      const currentId = authState.currentId;
+
+      if (!token || !currentId) {
+        Alert.alert("Lỗi", "Không tìm thấy thông tin đăng nhập");
+        return;
+      }
+
+      const entities = await fetchUserEntities(currentId, token);
+
+      if (!entities || entities.length === 0) {
+        Alert.alert("Lỗi", "Không tìm thấy tài khoản liên kết");
+        return;
+      }
+
+      setAuthState(prev => ({
+        ...prev,
+        entities,
+      }));
+
+      await AsyncStorage.setItem("entities", JSON.stringify(entities));
+
+    } catch (error) {
+      console.log("fetchEntities error:", error);
+      Alert.alert("Lỗi", "Không thể kết nối đến server");
+    } finally {
+      setIsLoading(false);
     }
   };
 
 
   const logout = async () => {
-    await AsyncStorage.multiRemove(['userEmail', 'token', 'role']);
+    // Xóa tất cả các keys liên quan đến authentication
+    await AsyncStorage.multiRemove([
+      'userEmail',
+      'token',
+      'role',
+      'currentId',
+      'avatar',
+      'type',
+      'EntityAccountId'
+    ]);
     setAuthState({
       isAuthenticated: false,
       userEmail: undefined,
@@ -133,62 +182,61 @@ export const useAuth = () => {
       type: undefined,
       avatar: undefined,
       EntityAccountId: undefined,
+      entities: [],
     });
     router.replace('/auth/login');
   };
 
-  // hooks/useAuth.ts
+  const updateAuthState = async (
+    updates: Partial<AuthState>,
+    options?: { persist?: boolean }
+  ) => {
+    const shouldPersist = options?.persist ?? true;
 
-const updateAuthState = async (
-  updates: Partial<AuthState>,
-  options?: { persist?: boolean }
-) => {
-  const shouldPersist = options?.persist ?? true;
+    setAuthState((prev) => {
+      const newState = { ...prev, ...updates };
 
-  setAuthState((prev) => {
-    const newState = { ...prev, ...updates };
+      // Tự động lưu vào AsyncStorage nếu cần
+      if (shouldPersist) {
+        const savePromises = [];
 
-    // Tự động lưu vào AsyncStorage nếu cần
-    if (shouldPersist) {
-      const savePromises = [];
-
-      if (updates.userEmail !== undefined)
-        savePromises.push(AsyncStorage.setItem('userEmail', updates.userEmail || ''));
-      if (updates.token !== undefined)
-        savePromises.push(AsyncStorage.setItem('token', updates.token || ''));
-      if (updates.role !== undefined)
-        savePromises.push(AsyncStorage.setItem('role', updates.role || Role.CUSTOMER));
-      if (updates.currentId !== undefined)
-        savePromises.push(AsyncStorage.setItem('currentId', updates.currentId || ''));
-      if (updates.avatar !== undefined) {
-        if (updates.avatar) {
-          savePromises.push(AsyncStorage.setItem('avatar', updates.avatar));
-        } else {
-          savePromises.push(AsyncStorage.removeItem('avatar'));
+        if (updates.userEmail !== undefined)
+          savePromises.push(AsyncStorage.setItem('userEmail', updates.userEmail || ''));
+        if (updates.token !== undefined)
+          savePromises.push(AsyncStorage.setItem('token', updates.token || ''));
+        if (updates.role !== undefined)
+          savePromises.push(AsyncStorage.setItem('role', updates.role || Role.CUSTOMER));
+        if (updates.currentId !== undefined)
+          savePromises.push(AsyncStorage.setItem('currentId', updates.currentId || ''));
+        if (updates.avatar !== undefined) {
+          if (updates.avatar) {
+            savePromises.push(AsyncStorage.setItem('avatar', updates.avatar));
+          } else {
+            savePromises.push(AsyncStorage.removeItem('avatar'));
+          }
         }
-      }
-      if (updates.type !== undefined) {
-        if (updates.type) {
-          savePromises.push(AsyncStorage.setItem('type', updates.type));
-        } else {
-          savePromises.push(AsyncStorage.removeItem('type'));
+        if (updates.type !== undefined) {
+          if (updates.type) {
+            savePromises.push(AsyncStorage.setItem('type', updates.type));
+          } else {
+            savePromises.push(AsyncStorage.removeItem('type'));
+          }
         }
-      }
-      if (updates.EntityAccountId !== undefined) {
-        if (updates.EntityAccountId) {
-          savePromises.push(AsyncStorage.setItem('EntityAccountId', updates.EntityAccountId));
-        } else {
-          savePromises.push(AsyncStorage.removeItem('EntityAccountId'));
+        if (updates.EntityAccountId !== undefined) {
+          if (updates.EntityAccountId) {
+            savePromises.push(AsyncStorage.setItem('EntityAccountId', updates.EntityAccountId));
+          } else {
+            savePromises.push(AsyncStorage.removeItem('EntityAccountId'));
+          }
         }
+
+        // Thực hiện lưu bất đồng bộ (không cần await ở đây vì không block UI)
+        Promise.all(savePromises).catch((err) => console.warn('Lưu AsyncStorage thất bại:', err));
       }
 
-      // Thực hiện lưu bất đồng bộ (không cần await ở đây vì không block UI)
-      Promise.all(savePromises).catch((err) => console.warn('Lưu AsyncStorage thất bại:', err));
-    }
+      return newState;
+    });
+  };
 
-    return newState;
-  });
-};
-
-  return { authState, login, logout, upgradeRole, updateAuthState };
+  return { authState, login, logout, upgradeRole, updateAuthState, isLoading, fetchEntities };
 };

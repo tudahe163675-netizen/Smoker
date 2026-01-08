@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import {
-    Animated,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-    ViewStyle,
+  Animated,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
 
 interface AnimatedHeaderProps {
@@ -18,6 +18,7 @@ interface AnimatedHeaderProps {
   headerTranslateY: Animated.AnimatedAddition;
   gradientColors?: string[];
   style?: ViewStyle;
+  rightElement?: React.ReactNode;
 }
 
 const AnimatedHeader: React.FC<AnimatedHeaderProps> = ({
@@ -28,6 +29,7 @@ const AnimatedHeader: React.FC<AnimatedHeaderProps> = ({
   headerTranslateY,
   gradientColors = ['#1f2937', '#374151'],
   style,
+  rightElement,
 }) => {
   return (
     <Animated.View 
@@ -45,16 +47,13 @@ const AnimatedHeader: React.FC<AnimatedHeaderProps> = ({
               <Text style={styles.headerSubtitle}>{subtitle}</Text>
             )}
           </View>
-          
-          {iconName && (
-            <TouchableOpacity 
-              style={styles.iconButton} 
-              onPress={onIconPress}
-              activeOpacity={0.8}
-            >
+          {rightElement ? (
+            rightElement
+          ) : iconName ? (
+            <TouchableOpacity style={styles.iconButton} onPress={onIconPress} activeOpacity={0.8}>
               <Ionicons name={iconName} size={24} color="#fff" />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </LinearGradient>
     </Animated.View>

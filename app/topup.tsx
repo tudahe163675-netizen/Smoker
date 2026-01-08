@@ -133,7 +133,12 @@ export default function TopUpScreen() {
     setIsProcessing(true);
 
     try {
-      // TODO: Replace with actual API call
+      // TODO: Tích hợp với payment gateway (PayOS/VNPay)
+      // Cần tạo API endpoint để tạo payment link từ backend
+      // Ví dụ: POST /wallet/topup với { amount, paymentMethod }
+      // Backend sẽ tạo payment link và trả về URL để redirect
+      
+      // Hiện tại: Mock API call
       await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
 
       const finalAmount = getFinalAmount();
@@ -288,6 +293,7 @@ export default function TopUpScreen() {
               value={customAmount}
               onChangeText={setCustomAmountValue}
               placeholder="Nhập số tiền (VND)"
+              placeholderTextColor="#9ca3af"
               keyboardType="numeric"
               maxLength={10}
             />

@@ -1,4 +1,6 @@
+import { AuthState } from '@/constants/authData';
 import { useAccounts } from '@/hooks/useAccount';
+import { useAuth } from '@/hooks/useAuth';
 import { Account } from '@/types/accountType';
 import { UserProfileData } from '@/types/profileType';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +26,10 @@ interface SidebarMenuProps {
   onClose: () => void;
   onLogout: () => void;
   onProfileRefresh: (profile: UserProfileData) => void;
+  updateAuth: (
+    updates: Partial<AuthState>,
+    options?: { persist?: boolean }
+  ) => void;
 }
 
 export const SidebarMenu: React.FC<SidebarMenuProps> = ({
@@ -33,57 +39,85 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
   onClose,
   onLogout,
   onProfileRefresh,
+  updateAuth
 }) => {
   const router = useRouter();
   const {
-    accounts,
     currentAccountId,
     loading,
-    canCreateAccount,
     registerBusiness,
-    fetchAccounts,
   } = useAccounts();
 
+  const { authState, fetchEntities } = useAuth();
+  const accounts = authState.entities;
+
   const [showBusinessModal, setShowBusinessModal] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
 
   if (!visible && menuAnimation.__getValue() === -320) {
     return null;
   }
 
-  // Handle switch account
+  // Handle switch account with loading state
   const handleSwitchAccount = async (account: Account) => {
-    onClose();
+    if (account.EntityAccountId === authState.EntityAccountId) {
+      return;
+    }
+    try {
+      setSwitchingAccount(true);
 
-    const dataProfile: UserProfileData = {
-      id: account.id!,
-      userName: account.name || '',
-      email: profile.email || '', 
-      avatar: account.Avatar,
-      background: account.Background || '',
-      coverImage: account.Background || '',
-      phone: account.Phone || '',
-      bio: account.Bio || '',
-      role: account.Role,
-      gender: account.Gender,
-      address: '', 
-      addressData: null, 
-      status: '', 
-      createdAt: account.created_at
-    };
+      const dataProfile: UserProfileData = {
+        id: account.id!,
+        userName: account.name || '',
+        email: profile.email || '',
+        avatar: account.Avatar || account.avatar,
+        background: account.Background || '',
+        coverImage: account.Background || '',
+        phone: account.Phone || '',
+        bio: account.Bio || '',
+        role: account.role,
+        gender: account.Gender,
+        address: '',
+        addressData: null,
+        status: '',
+        createdAt: account.created_at
+      };
 
-    onProfileRefresh(dataProfile);
+      // Update profile
+      onProfileRefresh(dataProfile);
+
+      // Update auth state
+      updateAuth({
+        avatar: account.Avatar || account.avatar,
+        EntityAccountId: account.EntityAccountId,
+        type: account.type,
+        role: account.role,
+        currentId: account.id
+      });
+
+      // Wait a bit to ensure all updates are complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Close sidebar after successful switch
+      onClose();
+    } catch (error) {
+      console.error('Switch account error:', error);
+      Alert.alert('Lỗi', 'Không thể chuyển tài khoản. Vui lòng thử lại.');
+    } finally {
+      setSwitchingAccount(false);
+    }
   };
 
-  // SIMPLE VERSION: Just open modal, don't close sidebar
+  // SIMPLE VERSION: Just open modals, don't close sidebar
   // Modal will render on top with higher zIndex
   const handleUpgradeAccount = () => {
     setShowBusinessModal(true);
   };
 
-  // When modal closes, also close sidebar
+  // When modals closes, also close sidebar
   const handleModalClose = () => {
     setShowBusinessModal(false);
-    onClose(); // Close sidebar when modal closes
+    onClose(); // Close sidebar when modals closes
   };
 
   // Handle business registration submit
@@ -93,12 +127,12 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
   ) => {
     try {
       const success = await registerBusiness(type, data);
-      
+
       if (success) {
         // Refresh accounts list
-        await fetchAccounts();
+        await fetchEntities();
         setShowBusinessModal(false);
-        // Sidebar will be closed when modal closes
+        // Sidebar will be closed when modals closes
       }
     } catch (error) {
       console.error('Business registration error:', error);
@@ -106,10 +140,20 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
     }
   };
 
+  const handleChangePassword = () => {
+    onClose();
+    router.push('/changePassword');
+  };
+
   return (
     <>
       {visible && (
-        <TouchableOpacity style={styles.menuOverlay} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={styles.menuOverlay}
+          activeOpacity={1}
+          onPress={onClose}
+          disabled={switchingAccount}
+        />
       )}
       <Animated.View
         style={[
@@ -149,15 +193,20 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
                       currentAccountId === account.id && styles.accountItemActive,
                     ]}
                     onPress={() => handleSwitchAccount(account)}
+                    disabled={switchingAccount}
                   >
-                    <Image source={{ uri: account.Avatar }} style={styles.accountAvatar} />
+                    <Image source={{ uri: account.avatar }} style={styles.accountAvatar} />
                     <View style={styles.accountInfo}>
                       <Text style={styles.accountName}>{account.name}</Text>
-                      <Text style={styles.accountType}>{account.Role}</Text>
-                      {account.Status === 'pending' && (
+                      <Text style={styles.accountType}>{account.role}</Text>
+                      {account.status === 'pending' && (
                         <Text style={styles.accountStatus}>Đang chờ duyệt</Text>
                       )}
                     </View>
+
+                    {account.EntityAccountId === authState.EntityAccountId && (
+                      <Ionicons name="checkmark-circle" size={22} color="#2563eb" style={{ marginLeft: 'auto', marginRight: 8 }} />
+                    )}
                   </TouchableOpacity>
                 ))}
               </>
@@ -167,21 +216,50 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
           <View style={styles.menuDivider} />
 
           {/* Upgrade Account */}
-          <TouchableOpacity style={styles.menuItem} onPress={handleUpgradeAccount}>
-            <View style={styles.menuItemIcon}>
-              <Ionicons name="business" size={24} color="#8b5cf6" />
-            </View>
-            <View style={styles.menuItemContent}>
-              <Text style={styles.menuItemTitle}>Nâng cấp tài khoản doanh nghiệp</Text>
-              <Text style={styles.menuItemSubtitle}>Mở khóa nhiều tính năng hơn</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
+          {(authState.role === 'Customer' || authState.role === 'customer') && (
+            <>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleUpgradeAccount}
+                disabled={switchingAccount}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="business" size={24} color="#8b5cf6" />
+                </View>
+                <View style={styles.menuItemContent}>
+                  <Text style={styles.menuItemTitle}>Nâng cấp tài khoản doanh nghiệp</Text>
+                  <Text style={styles.menuItemSubtitle}>Mở khóa nhiều tính năng hơn</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+              </TouchableOpacity>
 
-          <View style={styles.menuDivider} />
+              <View style={styles.menuDivider} />
 
+              {/* MY BOOKING TẠI ĐÂY */}
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  onClose();
+                  router.push('/myBooking');
+                }}
+                disabled={switchingAccount}
+              >
+                <View style={styles.menuItemIcon}>
+                  <Ionicons name="calendar-outline" size={24} color="#10b981" />
+                </View>
+
+                <View style={styles.menuItemContent}>
+                  <Text style={styles.menuItemTitle}>Lịch đặt của tôi</Text>
+                  <Text style={styles.menuItemSubtitle}>Xem và quản lý các buổi đặt</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+            </>
+          )}
+          
           {/* Settings */}
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} disabled={switchingAccount}>
             <View style={styles.menuItemIcon}>
               <Ionicons name="settings-outline" size={24} color="#6b7280" />
             </View>
@@ -191,8 +269,23 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
+          {/* Change Password */}
+          <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={handleChangePassword}
+            disabled={switchingAccount}
+          >
+            <View style={styles.menuItemIcon}>
+              <Ionicons name="key-outline" size={24} color="#6b7280" />
+            </View>
+            <View style={styles.menuItemContent}>
+              <Text style={styles.menuItemTitle}>Đổi mật khẩu</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+
           {/* Help & Support */}
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} disabled={switchingAccount}>
             <View style={styles.menuItemIcon}>
               <Ionicons name="help-circle-outline" size={24} color="#6b7280" />
             </View>
@@ -203,7 +296,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
           </TouchableOpacity>
 
           {/* Privacy */}
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} disabled={switchingAccount}>
             <View style={styles.menuItemIcon}>
               <Ionicons name="shield-checkmark-outline" size={24} color="#6b7280" />
             </View>
@@ -216,7 +309,11 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
           <View style={styles.menuDivider} />
 
           {/* Logout */}
-          <TouchableOpacity style={styles.menuItem} onPress={onLogout}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={onLogout}
+            disabled={switchingAccount}
+          >
             <View style={styles.menuItemIcon}>
               <Ionicons name="log-out-outline" size={24} color="#ef4444" />
             </View>
@@ -225,6 +322,16 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
             </View>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Loading Overlay when switching account */}
+        {switchingAccount && (
+          <View style={styles.switchingOverlay}>
+            <View style={styles.switchingContainer}>
+              <ActivityIndicator size="large" color="#2563eb" />
+              <Text style={styles.switchingText}>Đang chuyển tài khoản...</Text>
+            </View>
+          </View>
+        )}
       </Animated.View>
 
       {/* Business Registration Modal - Always render, control via visible prop */}
@@ -232,6 +339,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
         visible={showBusinessModal}
         onClose={handleModalClose}
         onSubmit={handleBusinessRegistration}
+        entities={accounts}
       />
     </>
   );
@@ -400,5 +508,28 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#e5e7eb',
     marginVertical: 8,
+  },
+
+  // Switching Account Overlay
+  switchingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  switchingContainer: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  switchingText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#111827',
   },
 });

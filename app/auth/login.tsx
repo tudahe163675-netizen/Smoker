@@ -1,9 +1,11 @@
 import { useAuth } from '@/hooks/useAuth';
+import { Ionicons } from '@expo/vector-icons';
 import Checkbox from 'expo-checkbox';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -21,7 +23,8 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const { login } = useAuth(); // Sử dụng hook useAuth
+  const [showPassword, setShowPassword] = useState(false);
+  const { login, isLoading } = useAuth();
 
   const onLogin = () => {
     if (!email.trim() || !password.trim()) {
@@ -37,6 +40,10 @@ export default function LoginScreen() {
     router.push('/auth/register');
   };
 
+  const onGoForgotPassword = () => {
+    router.push('/auth/forgotPassword');
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar 
@@ -47,7 +54,7 @@ export default function LoginScreen() {
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={'padding'}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView 
           showsVerticalScrollIndicator={false}
@@ -64,22 +71,38 @@ export default function LoginScreen() {
 
           <View>
             <TextInput
-              placeholder="Tên đăng nhập"
+              placeholder="Email"
               style={styles.input}
               placeholderTextColor="#9ca3af"
               autoCapitalize="none"
+              keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
+              editable={!isLoading}
             />
 
-            <TextInput
-              placeholder="Mật khẩu"
-              style={styles.input}
-              secureTextEntry
-              placeholderTextColor="#9ca3af"
-              value={password}
-              onChangeText={setPassword}
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                placeholder="Mật khẩu"
+                style={styles.passwordInput}
+                secureTextEntry={!showPassword}
+                placeholderTextColor="#9ca3af"
+                value={password}
+                onChangeText={setPassword}
+                editable={!isLoading}
+              />
+              <TouchableOpacity 
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
+              >
+                <Ionicons 
+                  name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                  size={22} 
+                  color="#6b7280" 
+                />
+              </TouchableOpacity>
+            </View>
 
             {/* Checkbox nhớ đăng nhập */}
             <View style={styles.rememberContainer}>
@@ -88,20 +111,32 @@ export default function LoginScreen() {
                   value={rememberMe}
                   onValueChange={setRememberMe}
                   color={rememberMe ? '#2563eb' : undefined}
+                  disabled={isLoading}
                 />
                 <Text style={styles.rememberText}>Nhớ đăng nhập</Text>
               </View>
 
-              <TouchableOpacity>
+              <TouchableOpacity 
+                onPress={onGoForgotPassword} 
+                disabled={isLoading}
+              >
                 <Text style={styles.forgotText}>Quên mật khẩu?</Text>
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={onLogin}>
-              <Text style={styles.buttonText}>Đăng nhập</Text>
+            <TouchableOpacity 
+              style={[styles.button, isLoading && styles.buttonDisabled]} 
+              onPress={onLogin}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Đăng nhập</Text>
+              )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={onGoRegister}>
+            <TouchableOpacity onPress={onGoRegister} disabled={isLoading}>
               <Text style={styles.registerText}>
                 Bạn chưa có tài khoản? <Text style={styles.registerLink}>Đăng ký</Text>
               </Text>
@@ -153,6 +188,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
     fontSize: 15,
   },
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  passwordInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    padding: 12,
+    paddingRight: 45,
+    borderRadius: 8,
+    backgroundColor: '#f9fafb',
+    fontSize: 15,
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+    padding: 4,
+  },
   rememberContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -178,6 +232,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     marginBottom: 16,
+  },
+  buttonDisabled: {
+    backgroundColor: '#93bbf5',
   },
   buttonText: {
     textAlign: 'center',
