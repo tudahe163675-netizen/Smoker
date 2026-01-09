@@ -2,7 +2,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { BarApiService } from '@/services/barApi';
 import { BarItem } from '@/types/barType';
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -19,6 +18,7 @@ import {
   View
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '@/constants/colors';
 
 const { width } = Dimensions.get("window");
 
@@ -266,10 +266,10 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.card} />
 
-      {/* ANIMATED HEADER - Full screen từ trên cùng */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: '#0f172a' }}>
+      {/* Header giống style FeedHeader */}
+      <SafeAreaView edges={['top']} style={{ backgroundColor: Colors.card }}>
         <Animated.View 
           style={[
             styles.header,
@@ -350,7 +350,7 @@ export default function FeedScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: Colors.background,
   },
 
   // ===== HEADER =====
@@ -358,26 +358,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: "#000",
+    backgroundColor: Colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
+    shadowColor: Colors.black,
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 12,
     elevation: 8,
   },
   headerTitle: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.foreground,
     letterSpacing: 0.5,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: Colors.mutedForeground,
     marginTop: 2,
   },
   searchButton: {
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
 
   // ===== BAR CARD =====
   barCard: {
-    backgroundColor: "#fff",
+    backgroundColor: Colors.card,
     borderRadius: 20,
     overflow: "hidden",
     marginBottom: 20,

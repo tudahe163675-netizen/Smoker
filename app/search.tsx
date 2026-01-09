@@ -19,7 +19,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {FeedApiService} from "@/services/feedApi";
+import { FeedApiService } from "@/services/feedApi";
+import { Colors } from '@/constants/colors';
 
 const TABS = [
   { key: 'all', label: 'Tất cả' },
@@ -337,7 +338,7 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -345,7 +346,7 @@ export default function SearchScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tìm kiếm</Text>
         <View style={styles.backButton} />
@@ -396,7 +397,7 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -404,9 +405,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: Colors.card,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
   },
   backButton: {
     width: 40,
@@ -416,28 +417,28 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '600',
+    color: Colors.foreground,
   },
   queryContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: Colors.card,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
   },
   queryText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.mutedForeground,
   },
   queryBold: {
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.foreground,
   },
   tabsScrollView: {
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: Colors.card,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -449,18 +450,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.muted,
   },
   activeTab: {
-    backgroundColor: '#2563eb',
+    backgroundColor: Colors.primary,
   },
   tabText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.mutedForeground,
     fontWeight: '500',
   },
   activeTabText: {
-    color: '#fff',
+    color: Colors.primaryForeground,
     fontWeight: '600',
   },
   resultsContainer: {
@@ -475,12 +476,12 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.mutedForeground,
   },
   emptyText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#9ca3af',
+    color: Colors.mutedForeground,
     textAlign: 'center',
   },
   listContent: {
@@ -491,18 +492,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     marginBottom: 8,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: Colors.border,
   },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
     marginRight: 12,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.muted,
   },
   userInfo: {
     flex: 1,
@@ -510,30 +511,30 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: Colors.foreground,
     marginBottom: 4,
   },
   userType: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.mutedForeground,
   },
   followButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#2563eb',
+    backgroundColor: Colors.primary,
     marginLeft: 8,
   },
   followingButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: Colors.muted,
   },
   followButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.primaryForeground,
   },
   followingButtonText: {
-    color: '#6b7280',
+    color: Colors.mutedForeground,
   },
 });
 

@@ -1,4 +1,5 @@
 import AnimatedHeader from '@/components/ui/AnimatedHeader';
+import { Colors } from '@/constants/colors';
 import {Notification} from '@/constants/notiData';
 import {useNotifications} from '@/hooks/useNotifications';
 import {Ionicons} from '@expo/vector-icons';
@@ -128,16 +129,18 @@ export default function NotificationScreen() {
 
     // Loading UI
     if (isLoading) {
-        return (
-            <SafeAreaView style={styles.loadingContainer}>
-                <AnimatedHeader
-                    title="Thông Báo"
-                    headerTranslateY={headerTranslateY}
-                />
-                <ActivityIndicator size="large" color="#2563eb"/>
+    return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <AnimatedHeader
+                title="Thông Báo"
+                headerTranslateY={headerTranslateY}
+            />
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary}/>
                 <Text style={styles.loadingText}>Đang tải thông báo...</Text>
-            </SafeAreaView>
-        );
+            </View>
+        </SafeAreaView>
+    );
     }
 
     return (
@@ -168,7 +171,7 @@ export default function NotificationScreen() {
                 }
                 contentContainerStyle={{
                     paddingBottom: insets.bottom,
-                    paddingTop: 70,
+                    paddingTop: 72,
                 }}
                 onScroll={Animated.event([{nativeEvent: {contentOffset: {y: scrollY}}}], {
                     useNativeDriver: true,

@@ -3,7 +3,8 @@ import { GlobalSearch } from '@/components/search/GlobalSearch';
 import { CreateStoryModal } from '@/components/story/CreateStoryModal';
 import { StoryList } from '@/components/story/StoryList';
 import { StoryViewer } from '@/components/story/StoryViewer';
-import AnimatedHeader from '@/components/ui/AnimatedHeader';
+import FeedHeader from '@/components/ui/FeedHeader';
+import { CreateMenuModal } from '@/components/feed/CreateMenuModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';
 import { useSocket } from '@/hooks/useSocket';
@@ -13,6 +14,7 @@ import { MessageApiService } from '@/services/messageApi';
 import { PostData } from '@/types/postType';
 import { StoryData } from '@/types/storyType';
 import { isStoryValid } from '@/utils/extension';
+import { Colors } from '@/constants/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { ResizeMode, Video } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
@@ -152,6 +154,7 @@ export default function HomeScreen() {
     const [repostContent, setRepostContent] = useState('');
     const [repostingItem, setRepostingItem] = useState<PostData | null>(null);
     const [searchModalVisible, setSearchModalVisible] = useState(false);
+    const [createMenuVisible, setCreateMenuVisible] = useState(false);
 
     const {
         posts,
@@ -334,12 +337,6 @@ export default function HomeScreen() {
         return `${Math.floor(diffInHours / 24)} ngày trước`;
     };
 
-    const headerTranslateY = scrollY.interpolate({
-        inputRange: [0, 100],
-        outputRange: [0, -100],
-        extrapolate: 'clamp',
-    });
-
     const handleRepostAction = useCallback((item: PostData) => {
         setRepostingItem(item);
         setRepostContent('');
@@ -359,68 +356,41 @@ export default function HomeScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <StatusBar barStyle="light-content" backgroundColor="#1f2937"/>
+            <StatusBar barStyle="dark-content" backgroundColor={Colors.card}/>
 
 
-            <AnimatedHeader
-                title="Smoker App"
-                subtitle="Chia sẻ khoảnh khắc"
-                headerTranslateY={headerTranslateY}
-                iconName="chatbubble-outline"
-                onIconPress={() => router.push('/chat')}
-                style={{}}
-                // Custom right icons with search and chat
-                rightElement={
-                    <View style={{flexDirection: 'row', gap: 8}}>
-                        <TouchableOpacity
-                            style={{width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center'}}
-                            onPress={() => setSearchModalVisible(true)}
-                        >
-                            <Ionicons name="search" size={24} color="#fff"/>
-                        </TouchableOpacity>
-                        {unreadCount > 0 ? (
-                            <View style={{position: 'relative'}}>
-                                <TouchableOpacity
-                                    style={{width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center'}}
-                                    onPress={() => router.push('/chat')}
-                                >
-                                    <Ionicons name="chatbubble-outline" size={24} color="#fff"/>
-                                </TouchableOpacity>
-                                <View style={{
-                                    position: 'absolute',
-                                    top: -6,
-                                    right: -6,
-                                    backgroundColor: '#ef4444',
-                                    borderRadius: 8,
-                                    minWidth: 16,
-                                    height: 16,
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    paddingHorizontal: 3,
-                                }}>
-                                    <Text style={{color: '#fff', fontSize: 10, fontWeight: 'bold'}}>{unreadCount}</Text>
-                                </View>
-                            </View>
-                        ) : (
-                            <TouchableOpacity
-                                style={{width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center'}}
-                                onPress={() => router.push('/chat')}
-                            >
-                                <Ionicons name="chatbubble-outline" size={24} color="#fff"/>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                }
+            {/* Header giống web */}
+            <FeedHeader
+                onSearchPress={() => setSearchModalVisible(true)}
+                onMessagesPress={() => router.push('/chat')}
+                onNotificationsPress={() => {
+                    // TODO: Open notifications panel
+                }}
+                onProfilePress={() => {
+                    // TODO: Open profile/sidebar
+                }}
+                unreadMessageCount={unreadCount}
+                unreadNotificationCount={0}
             />
+            
+            {/* Plus button để tạo nội dung - giống web */}
+            <View style={styles.createButtonContainer}>
+                <TouchableOpacity
+                    style={styles.createButton}
+                    onPress={() => setCreateMenuVisible(true)}
+                >
+                    <Ionicons name="add" size={24} color={Colors.primaryForeground} />
+                </TouchableOpacity>
+            </View>
 
             <Animated.FlatList
                 data={posts}
                 renderItem={renderItem}
                     keyExtractor={(item) => item.id ?? item._id ?? ''}
-                style={[styles.container, {paddingTop: 40}]}
-                contentContainerStyle={{paddingBottom: 40}}
+                style={styles.container}
+                contentContainerStyle={{paddingBottom: 40, paddingTop: 8}}
                 ItemSeparatorComponent={() => (
-                    <View style={{height: 8, backgroundColor: '#f0f2f5'}}/>
+                    <View style={{height: 8, backgroundColor: Colors.background}}/>
                 )}
                 ListHeaderComponent={
                     <>
@@ -445,8 +415,8 @@ export default function HomeScreen() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={handleRefresh}
-                        colors={['#2563eb']}
-                        tintColor="#2563eb"
+                        colors={[Colors.primary]}
+                        tintColor={Colors.primary}
                     />
                 }
                 onEndReached={() => {
@@ -457,7 +427,7 @@ export default function HomeScreen() {
                     if (!loading) return null;
                     return (
                         <View style={{padding: 12}}>
-                            <ActivityIndicator size="small" color="#2563eb"/>
+                            <ActivityIndicator size="small" color={Colors.primary}/>
                         </View>
                     );
                 }}
@@ -589,6 +559,14 @@ export default function HomeScreen() {
                 onClose={() => setSearchModalVisible(false)}
             />
 
+            {/* Create Menu Modal */}
+            <CreateMenuModal
+                visible={createMenuVisible}
+                onClose={() => setCreateMenuVisible(false)}
+                onPostPress={openModal}
+                onStoryPress={handleCreateStory}
+            />
+
             {/* Repost Modal */}
             <Modal
                 visible={repostModalVisible}
@@ -678,15 +656,34 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f9fafb'
+        backgroundColor: Colors.background, // Giống web: #F0F2F5
+    },
+    createButtonContainer: {
+        position: 'absolute',
+        top: 80,
+        right: 16,
+        zIndex: 100,
+    },
+    createButton: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: Colors.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: Colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
     postBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: Colors.card,
         padding: 12,
         borderBottomWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: Colors.border,
         marginBottom: 8,
         marginTop: 8,
     },
@@ -694,23 +691,25 @@ const styles = StyleSheet.create({
         flex: 1,
         marginHorizontal: 10,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: Colors.border,
         borderRadius: 20,
         paddingVertical: 8,
         paddingHorizontal: 12,
-        backgroundColor: '#f9fafb',
+        backgroundColor: Colors.input,
     },
     iconButton: {
         padding: 8,
         borderRadius: 20,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: Colors.muted,
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: Colors.card,
         marginHorizontal: 8,
         marginBottom: 12,
         borderRadius: 12,
-        shadowColor: '#000',
+        borderWidth: 1,
+        borderColor: Colors.border,
+        shadowColor: Colors.black,
         shadowOpacity: 0.05,
         shadowOffset: {width: 0, height: 2},
         shadowRadius: 8,

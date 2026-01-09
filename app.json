@@ -10,7 +10,12 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.smoker"
+      "bundleIdentifier": "com.anonymous.smoker",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Ứng dụng cần truy cập camera để phát trực tiếp",
+        "NSMicrophoneUsageDescription": "Ứng dụng cần truy cập microphone để phát trực tiếp"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,11 +33,20 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-dev-client",
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "156d24f8-8448-403e-b0ff-17e64cc8233c"
+      }
     }
   }
 }

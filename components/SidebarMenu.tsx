@@ -258,6 +258,44 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
             </>
           )}
           
+          {/* Add Bank Info */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onClose();
+              router.push('/bank/add');
+            }}
+            disabled={switchingAccount}
+          >
+            <View style={styles.menuItemIcon}>
+              <Ionicons name="card-outline" size={24} color="#f59e0b" />
+            </View>
+            <View style={styles.menuItemContent}>
+              <Text style={styles.menuItemTitle}>Thêm thông tin ngân hàng</Text>
+              <Text style={styles.menuItemSubtitle}>Thêm tài khoản ngân hàng để nhận tiền</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+
+          {/* Wallet */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onClose();
+              router.push('/wallet');
+            }}
+            disabled={switchingAccount}
+          >
+            <View style={styles.menuItemIcon}>
+              <Ionicons name="wallet-outline" size={24} color="#22d3ee" />
+            </View>
+            <View style={styles.menuItemContent}>
+              <Text style={styles.menuItemTitle}>Ví</Text>
+              <Text style={styles.menuItemSubtitle}>Quản lý số dư và giao dịch</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+          
           {/* Settings */}
           <TouchableOpacity style={styles.menuItem} disabled={switchingAccount}>
             <View style={styles.menuItemIcon}>

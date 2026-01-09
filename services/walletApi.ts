@@ -49,9 +49,21 @@ class WalletApiService extends BaseApiService {
   }
 
   async getWallet(): Promise<ApiResponse<Wallet>> {
-    return this.makeRequest<Wallet>('/wallet', {
+    const response = await this.makeRequest<Wallet>('/wallet', {
       method: 'GET',
     });
+    
+    // Handle response format từ web: có thể là { status: 'success', data: ... }
+    if (response.success && response.data) {
+      return response;
+    }
+    
+    // Fallback: nếu response trực tiếp là wallet object
+    return {
+      success: true,
+      data: response.data as Wallet,
+      message: 'Success',
+    };
   }
 
   async getTransactions(params?: GetTransactionsParams): Promise<ApiResponse<{ transactions: Transaction[] }>> {
@@ -64,9 +76,29 @@ class WalletApiService extends BaseApiService {
     const queryString = queryParams.toString();
     const endpoint = queryString ? `/wallet/transactions?${queryString}` : '/wallet/transactions';
 
-    return this.makeRequest<{ transactions: Transaction[] }>(endpoint, {
+    const response = await this.makeRequest<{ transactions: Transaction[] } | { data: { transactions: Transaction[] } }>(endpoint, {
       method: 'GET',
     });
+    
+    // Handle response format: { status: 'success', data: { transactions: [...] } }
+    if (response.success) {
+      if (response.data && 'transactions' in response.data) {
+        return {
+          success: true,
+          data: response.data as { transactions: Transaction[] },
+          message: response.message,
+        };
+      }
+      if (response.data && 'data' in response.data && 'transactions' in (response.data as any).data) {
+        return {
+          success: true,
+          data: (response.data as any).data,
+          message: response.message,
+        };
+      }
+    }
+    
+    return response as ApiResponse<{ transactions: Transaction[] }>;
   }
 
   async createWithdrawRequest(
@@ -89,9 +121,29 @@ class WalletApiService extends BaseApiService {
     const queryString = queryParams.toString();
     const endpoint = queryString ? `/wallet/withdraw-requests?${queryString}` : '/wallet/withdraw-requests';
 
-    return this.makeRequest<{ requests: WithdrawRequest[] }>(endpoint, {
+    const response = await this.makeRequest<{ requests: WithdrawRequest[] } | { data: { requests: WithdrawRequest[] } }>(endpoint, {
       method: 'GET',
     });
+    
+    // Handle response format: { status: 'success', data: { requests: [...] } }
+    if (response.success) {
+      if (response.data && 'requests' in response.data) {
+        return {
+          success: true,
+          data: response.data as { requests: WithdrawRequest[] },
+          message: response.message,
+        };
+      }
+      if (response.data && 'data' in response.data && 'requests' in (response.data as any).data) {
+        return {
+          success: true,
+          data: (response.data as any).data,
+          message: response.message,
+        };
+      }
+    }
+    
+    return response as ApiResponse<{ requests: WithdrawRequest[] }>;
   }
 
   async setPin(pin: string): Promise<ApiResponse<{ success: boolean }>> {

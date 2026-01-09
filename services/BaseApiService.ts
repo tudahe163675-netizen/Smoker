@@ -40,10 +40,25 @@ export class BaseApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "API request failed");
+        throw new Error(data.message || data.error || "API request failed");
       }
 
-      return data;
+      // Handle response format giống web: có thể là { status: 'success', data: ... } hoặc trực tiếp data
+      // Nếu response có status và data, trả về format chuẩn
+      if (data.status === 'success' && data.data !== undefined) {
+        return {
+          success: true,
+          data: data.data,
+          message: data.message || 'Success',
+        };
+      }
+      
+      // Nếu response trực tiếp là data (không có wrapper)
+      return {
+        success: true,
+        data: data.data || data,
+        message: data.message || 'Success',
+      };
     } catch (error) {
       console.error("API Error:", error);
       return {

@@ -48,6 +48,34 @@ const getStatusLabel = (status: string): string => {
 const formatDate = (dateString: string): string => {
   if (!dateString) return '';
   
+  // SQL Server trả về datetime string dạng 'YYYY-MM-DD HH:mm:ss.mmm'
+  // Database đã lưu đúng giờ Việt Nam (GMT+7), cần parse thủ công để không bị convert timezone
+  if (typeof dateString === 'string') {
+    // Kiểm tra format datetime từ SQL Server
+    const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?/);
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match;
+      // Tạo date object với timezone local (không dùng timeZone option để tránh double conversion)
+      const localDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hour),
+        parseInt(minute),
+        parseInt(second || 0)
+      );
+      // Format không dùng timeZone để giữ nguyên giờ đã parse
+      return localDate.toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  }
+  
+  // Fallback: parse như bình thường
   try {
     const date = new Date(dateString);
     return date.toLocaleString('vi-VN', {
@@ -55,7 +83,7 @@ const formatDate = (dateString: string): string => {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit',
+      minute: '2-digit'
     });
   } catch {
     return dateString;
@@ -108,32 +136,13 @@ export default function WalletScreen() {
 
   const handleWithdraw = useCallback(
     async (amount: number, bankInfoId: string, pin: string) => {
-      // Nếu wallet chưa có PIN, set PIN trước
-      if (wallet && !wallet.hasPin) {
-        const pinSet = await setPin(pin);
-        if (!pinSet) {
-          throw new Error('Thiết lập PIN thất bại');
-        }
-        // Sau khi set PIN, verify PIN
-        const pinVerified = await verifyPin(pin);
-        if (!pinVerified) {
-          throw new Error('Xác thực PIN thất bại');
-        }
-      } else {
-        // Verify PIN nếu đã có
-        const pinVerified = await verifyPin(pin);
-        if (!pinVerified) {
-          throw new Error('PIN không đúng');
-        }
-      }
-
-      // Tạo yêu cầu rút tiền
+      // Tạo yêu cầu rút tiền (PIN đã được verify trong WithdrawModal)
       const result = await createWithdrawRequest(amount, bankInfoId, pin);
       if (!result) {
         throw new Error('Tạo yêu cầu rút tiền thất bại');
       }
     },
-    [wallet, setPin, verifyPin, createWithdrawRequest]
+    [createWithdrawRequest]
   );
 
   if (initialLoading) {
@@ -158,12 +167,7 @@ export default function WalletScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.foreground} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Ví của tôi</Text>
-        <TouchableOpacity
-          style={styles.topUpButton}
-          onPress={() => router.push('/topup')}
-        >
-          <Ionicons name="add-circle-outline" size={24} color={Colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerRight} />
       </View>
 
       <ScrollView
@@ -299,8 +303,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.foreground,
   },
-  topUpButton: {
-    padding: 8,
+  headerRight: {
+    width: 40,
   },
   scrollView: {
     flex: 1,

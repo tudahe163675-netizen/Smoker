@@ -14,9 +14,30 @@ class BankInfoApiService extends BaseApiService {
   }
 
   async getByAccountId(accountId: string): Promise<ApiResponse<BankInfo | BankInfo[]>> {
-    return this.makeRequest<BankInfo | BankInfo[]>(`/bank-info/account/${accountId}`, {
+    const response = await this.makeRequest<BankInfo | BankInfo[] | { data: BankInfo | BankInfo[] }>(`/bank-info/account/${accountId}`, {
       method: 'GET',
     });
+    
+    // Handle response format từ web: có thể là { status: 'success', data: ... } hoặc trực tiếp data
+    if (response.success) {
+      // Nếu data là object có status và data bên trong (nested)
+      if (response.data && typeof response.data === 'object' && 'status' in response.data && 'data' in response.data) {
+        const nestedData = (response.data as any).data;
+        return {
+          success: true,
+          data: nestedData,
+          message: response.message,
+        };
+      }
+      // Nếu data trực tiếp là BankInfo hoặc array
+      return {
+        success: true,
+        data: response.data as BankInfo | BankInfo[],
+        message: response.message,
+      };
+    }
+    
+    return response;
   }
 
   async getById(bankInfoId: string): Promise<ApiResponse<BankInfo>> {

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, formatCurrency, formatAmount } from '@/constants/colors';
 import { useAuthContext } from '@/contexts/AuthProvider';
 import { createBankInfoApi } from '@/services/bankInfoApi';
+import { createWalletApi } from '@/services/walletApi';
 import type { Wallet, BankInfo } from '@/services/walletApi';
 
 interface WithdrawModalProps {
@@ -133,25 +134,81 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = ({
 
     // Nếu đang ở form PIN
     if (showPinForm) {
-      if (!pin || pin.length !== 6) {
-        setPinError('PIN phải là 6 chữ số');
-        return;
-      }
-
       if (needsSetPin) {
-        // Set PIN logic sẽ được xử lý bởi parent component
-        // Ở đây chúng ta chỉ verify PIN và withdraw
-        await handleWithdraw();
+        await handleSetPin();
       } else {
-        // Verify PIN và withdraw
-        await handleWithdraw();
+        await handleVerifyPin();
       }
       return;
     }
 
     // Nếu chưa nhập amount và bank, validate và chuyển sang form PIN
-    if (handleContinueToPin()) {
-      // Form PIN sẽ được hiển thị
+    handleContinueToPin();
+  };
+
+  const handleSetPin = async () => {
+    if (!pin || pin.length !== 6) {
+      setPinError('PIN phải là 6 chữ số');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setPinError('');
+
+      if (!authState.token) {
+        setPinError('Chưa đăng nhập');
+        return;
+      }
+
+      const walletApi = createWalletApi(authState.token);
+      const res = await walletApi.setPin(pin);
+
+      if (res.success) {
+        setNeedsSetPin(false);
+        setPin('');
+        // Sau khi set PIN xong, hiển thị form verify PIN
+        setShowPinForm(true);
+      } else {
+        setPinError(res.message || 'Set PIN thất bại');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Set PIN thất bại';
+      setPinError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPin = async () => {
+    if (!pin || pin.length !== 6) {
+      setPinError('PIN phải là 6 chữ số');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setPinError('');
+
+      if (!authState.token) {
+        setPinError('Chưa đăng nhập');
+        return;
+      }
+
+      const walletApi = createWalletApi(authState.token);
+      const res = await walletApi.verifyPin(pin);
+
+      if (res.success) {
+        // PIN đúng, tiếp tục với withdraw
+        await handleWithdraw();
+      } else {
+        setPinError(res.message || 'PIN không đúng');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'PIN không đúng';
+      setPinError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 

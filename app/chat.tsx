@@ -6,6 +6,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '@/constants/colors';
 import { PublicProfileData } from '@/types/profileType';
 import { useSocket } from '@/hooks/useSocket';
 
@@ -188,7 +189,7 @@ export default function ConversationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.card,
     marginHorizontal: 8,
     marginVertical: 4,
     borderRadius: 12,
@@ -219,15 +220,15 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#111827',
+    color: Colors.foreground,
     marginBottom: 4,
   },
   lastMessage: {
     fontSize: 14,
-    color: '#6b7280',
+    color: Colors.mutedForeground,
   },
   unreadBadge: {
-    backgroundColor: '#ef4444',
+    backgroundColor: Colors.danger,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -236,14 +237,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   unreadText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 12,
     fontWeight: 'bold',
   },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
-    color: '#6b7280',
+    color: Colors.mutedForeground,
     marginTop: 100,
   },
   loadingContainer: {

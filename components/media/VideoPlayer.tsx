@@ -194,7 +194,7 @@ export default function VideoPlayer({ uri }: { uri: string }) {
                     onLoadStart={() => setLoadingSmall(true)}
                     onReadyForDisplay={(e) => {
                         if (e.naturalSize && e.naturalSize.width && e.naturalSize.height) {
-                            const { width, height } = e.naturalSize;
+                        const { width, height } = e.naturalSize;
                             setVideoRatio(width / height);
                         }
                     }}
