@@ -58,16 +58,14 @@ const AnimatedHeader: React.FC<AnimatedHeaderProps> = ({
 
 const styles = StyleSheet.create({
   header: {
-    height: 64,
+    minHeight: 64,
     backgroundColor: Colors.card,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
     justifyContent: 'center',
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
   },
   headerContent: {
     flexDirection: 'row',

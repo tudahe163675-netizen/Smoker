@@ -71,16 +71,8 @@ const styles = StyleSheet.create({
   header: {
     height: 64,
     backgroundColor: Colors.card,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
     paddingHorizontal: 16,
     justifyContent: 'center',
-    // Backdrop blur effect (giống web)
-    shadowColor: Colors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
   headerContent: {
     flexDirection: 'row',

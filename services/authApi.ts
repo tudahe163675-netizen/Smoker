@@ -7,6 +7,7 @@ export const loginApi = async (email: string, password: string) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Accept": "application/json",
       },
       body: JSON.stringify({
         email,
@@ -15,11 +16,23 @@ export const loginApi = async (email: string, password: string) => {
     });
 
     const json = await response.json();
+
+    // Xử lý lỗi HTTP status codes
+    if (!response.ok) {
+      return {
+        success: false,
+        message: json.message || json.error || `Lỗi ${response.status}: ${response.statusText}`,
+        status: response.status,
+      };
+    }
+
     return json;
   } catch (error) {
+    console.error("Login API Error:", error);
     return {
       success: false,
       message: "Không thể kết nối tới server",
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 };

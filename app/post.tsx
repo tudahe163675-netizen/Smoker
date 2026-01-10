@@ -17,7 +17,7 @@ import {
 
 import { CommentInput } from '@/components/post/CommentInput';
 import { CommentsList } from '@/components/post/CommentsList';
-import { EditPostModal } from '@/components/post/EditPostModal';
+import EditPostModal from '@/components/post/EditPostModal';
 import { PostMenu } from '@/components/post/PostMenu';
 import RenderPost from '@/components/post/PostContent';
 import { useAuth } from '@/hooks/useAuth';

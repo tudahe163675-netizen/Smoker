@@ -7,16 +7,18 @@ import {useRouter} from 'expo-router';
 import React, {useCallback, useRef, useState} from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Animated,
     Image,
     RefreshControl,
     FlatList as RNFlatList,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
-import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {formatTime} from "@/utils/extension";
 
 // Bọc FlatList với Animated.createAnimatedComponent
@@ -44,7 +46,26 @@ export default function NotificationScreen() {
     }, [refresh]);
 
     // Get icon based on notification type
-    const getNotificationIcon = (type: Notification['type']) => {
+    const getNotificationIcon = (type: Notification['type'], content?: string) => {
+        // Check if it's a withdrawal notification by content
+        const isWithdrawNotification = content?.toLowerCase().includes('rút tiền') || 
+                                      content?.toLowerCase().includes('giao dịch') ||
+                                      type === 'withdraw' || 
+                                      type === 'wallet';
+        
+        if (isWithdrawNotification) {
+            return <Ionicons name="wallet-outline" size={16} color="#10b981"/>;
+        }
+
+        // Check if it's a live stream notification
+        const isLiveStreamNotification = content?.toLowerCase().includes('phát trực tiếp') || 
+                                        content?.toLowerCase().includes('live stream') ||
+                                        type === 'livestream';
+        
+        if (isLiveStreamNotification) {
+            return <Ionicons name="videocam" size={16} color="#ef4444"/>;
+        }
+        
         switch (type) {
             case 'like':
                 return <Ionicons name="heart" size={16} color="#ef4444"/>;
@@ -67,6 +88,48 @@ export default function NotificationScreen() {
             markAsRead(notification._id);
         }
 
+        // Check if it's a withdrawal notification
+        const isWithdrawNotification = notification.content?.toLowerCase().includes('rút tiền') || 
+                                      notification.content?.toLowerCase().includes('giao dịch') ||
+                                      notification.type === 'withdraw' || 
+                                      notification.type === 'wallet';
+
+        if (isWithdrawNotification) {
+            // Navigate to wallet page
+            router.push('/wallet');
+            return;
+        }
+
+        // Check if it's a live stream notification
+        const isLiveStreamNotification = notification.content?.toLowerCase().includes('phát trực tiếp') || 
+                                        notification.content?.toLowerCase().includes('live stream') ||
+                                        notification.type === 'livestream' ||
+                                        notification.link?.includes('/livestream/');
+
+        if (isLiveStreamNotification) {
+            // Extract livestream ID from link or content
+            const livestreamIdMatch = notification.link?.match(/livestream\/([^\/]+)/) || 
+                                     notification.content?.match(/livestream[:\s]+([^\s]+)/i);
+            const livestreamId = livestreamIdMatch ? livestreamIdMatch[1] : null;
+
+            if (livestreamId) {
+                // Navigate to livestream viewer
+                // TODO: Implement livestream viewer page
+                Alert.alert(
+                    'Live Stream',
+                    'Tính năng xem live stream đang được phát triển. Vui lòng xem trên web để có trải nghiệm đầy đủ.',
+                    [{ text: 'OK' }]
+                );
+            } else {
+                Alert.alert(
+                    'Live Stream',
+                    'Live stream này đã kết thúc.',
+                    [{ text: 'OK' }]
+                );
+            }
+            return;
+        }
+
         const [, type, id] = notification.link.split("/");
         let path = "";
         switch (type) {
@@ -84,7 +147,7 @@ export default function NotificationScreen() {
             pathname: `/${path}` as any,
             params: {id: id},
         });
-    }, [markAsRead]);
+    }, [markAsRead, router]);
 
     const renderListEmpty = () => (
         <View style={styles.emptyContainer}>
@@ -106,14 +169,29 @@ export default function NotificationScreen() {
                 <View style={styles.avatarContainer}>
                     <Image source={{uri: item.sender.avatar}} style={styles.avatar}/>
                     <View style={styles.iconBadge}>
-                        {getNotificationIcon(item.type)}
+                        {getNotificationIcon(item.type, item.content)}
                     </View>
                 </View>
 
                 <View style={styles.textContainer}>
                     <Text style={styles.notificationText}>
-                        <Text style={styles.userName}>{item.sender.name} </Text>
-                        {item.content}
+                        {/* Don't show sender name for withdrawal notifications */}
+                        {(() => {
+                            const isWithdrawNotification = item.content?.toLowerCase().includes('rút tiền') || 
+                                                          item.content?.toLowerCase().includes('giao dịch') ||
+                                                          item.type === 'withdraw' || 
+                                                          item.type === 'wallet';
+                            
+                            if (isWithdrawNotification) {
+                                return <Text>{item.content}</Text>;
+                            }
+                            return (
+                                <>
+                                    <Text style={styles.userName}>{item.sender.name} </Text>
+                                    {item.content}
+                                </>
+                            );
+                        })()}
                     </Text>
                     <Text style={styles.timeText}>{formatTime(item.createdAt)}</Text>
                 </View>
@@ -127,29 +205,35 @@ export default function NotificationScreen() {
         </TouchableOpacity>
     );
 
+    const headerHeight = insets.top + 64;
+
     // Loading UI
     if (isLoading) {
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
             <AnimatedHeader
                 title="Thông Báo"
                 headerTranslateY={headerTranslateY}
+                style={{ paddingTop: insets.top, height: headerHeight }}
             />
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Colors.primary}/>
                 <Text style={styles.loadingText}>Đang tải thông báo...</Text>
             </View>
-        </SafeAreaView>
+        </View>
     );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
             <AnimatedHeader
                 title="Thông Báo"
                 iconName={unreadCount > 0 ? 'checkmark-done-outline' : undefined}
                 onIconPress={unreadCount > 0 ? markAllAsRead : undefined}
                 headerTranslateY={headerTranslateY}
+                style={{ paddingTop: insets.top, height: headerHeight }}
             />
 
             {/* Notifications List with RefreshControl */}
@@ -170,15 +254,15 @@ export default function NotificationScreen() {
                     />
                 }
                 contentContainerStyle={{
+                    paddingTop: headerHeight,
                     paddingBottom: insets.bottom,
-                    paddingTop: 72,
                 }}
                 onScroll={Animated.event([{nativeEvent: {contentOffset: {y: scrollY}}}], {
                     useNativeDriver: true,
                 })}
                 scrollEventThrottle={16}
             />
-        </SafeAreaView>
+        </View>
     );
 }
 

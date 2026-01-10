@@ -118,12 +118,17 @@ export const useWallet = () => {
         const walletApi = createWalletApi(authState.token);
         const response = await walletApi.getWithdrawRequests(params);
 
-        if (response.success && response.data) {
-          return response.data.requests || [];
-        } else {
-          setError(response.message || 'Không thể tải yêu cầu rút tiền');
-          return [];
-        }
+      if (response.success && response.data) {
+        const requests = response.data.requests || [];
+        // Normalize field names to ensure accountHolderName is available
+        return requests.map((req: any) => ({
+          ...req,
+          accountHolderName: req.accountHolderName || req.AccountHolderName || req.account_holder_name,
+        }));
+      } else {
+        setError(response.message || 'Không thể tải yêu cầu rút tiền');
+        return [];
+      }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Lỗi không xác định';
         setError(errorMessage);

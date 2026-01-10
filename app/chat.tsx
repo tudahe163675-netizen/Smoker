@@ -4,8 +4,8 @@ import { MessageApiService } from '@/services/messageApi';
 import publicProfileApi from '@/services/publicProfileApi';
 import { useRouter, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, FlatList, Image, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Animated, FlatList, Image, RefreshControl, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { PublicProfileData } from '@/types/profileType';
 import { useSocket } from '@/hooks/useSocket';
@@ -31,6 +31,7 @@ interface Conversation {
 export default function ConversationsScreen() {
   const router = useRouter();
   const { authState } = useAuth();
+  const insets = useSafeAreaInsets();
   const currentUserId = authState.currentId;
   const token = authState.token;
   const messageApi = useMemo(() => token ? new MessageApiService(token) : null, [token]);
@@ -153,12 +154,16 @@ export default function ConversationsScreen() {
     );
   };
 
+  const headerHeight = insets.top + 64;
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
       <AnimatedHeader
         title="Chat"
         subtitle="Trò chuyện với bạn bè"
         headerTranslateY={headerTranslateY}
+        style={{ paddingTop: insets.top, height: headerHeight }}
       />
 
       <View style={styles.content}>
@@ -175,14 +180,14 @@ export default function ConversationsScreen() {
             renderItem={renderConversationItem}
             keyExtractor={(item) => item._id}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingTop: 60 }}
+            contentContainerStyle={{ paddingTop: headerHeight }}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

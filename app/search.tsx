@@ -18,9 +18,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FeedApiService } from "@/services/feedApi";
 import { Colors } from '@/constants/colors';
+import AnimatedHeader from '@/components/ui/AnimatedHeader';
 
 const TABS = [
   { key: 'all', label: 'Tất cả' },
@@ -36,6 +37,7 @@ export default function SearchScreen() {
   const params = useLocalSearchParams();
   const query = (params.q as string) || '';
   const { authState } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(false);
@@ -337,11 +339,11 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
@@ -390,7 +392,7 @@ export default function SearchScreen() {
       <View style={styles.resultsContainer}>
         {renderContent()}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -406,8 +408,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: Colors.card,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
   },
   backButton: {
     width: 40,

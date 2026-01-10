@@ -46,6 +46,14 @@ export const styles = StyleSheet.create({
         color: '#374151',
         lineHeight: 20,
     },
+    seeMoreText: {
+        paddingHorizontal: 12,
+        fontSize: 15,
+        color: '#2563eb',
+        fontWeight: '500',
+        marginTop: -8,
+        marginBottom: 8,
+    },
     imageGalleryContainer: {
         position: 'relative',
         marginBottom: 8,
@@ -389,5 +397,46 @@ export const styles = StyleSheet.create({
         fontSize: 14,
         color: '#374151',
         lineHeight: 20,
+    },
+    menuButton: {
+        padding: 8,
+        borderRadius: 20,
+    },
+    menuOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    menuContainer: {
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        padding: 8,
+        minWidth: 200,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 8,
+        gap: 12,
+    },
+    menuItemDanger: {
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+        marginTop: 4,
+    },
+    menuItemText: {
+        fontSize: 15,
+        color: '#111827',
+        fontWeight: '500',
+    },
+    menuItemTextDanger: {
+        color: '#ef4444',
     },
 });

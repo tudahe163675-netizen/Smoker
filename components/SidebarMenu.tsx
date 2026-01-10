@@ -295,6 +295,25 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
+
+          {/* Trash */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              onClose();
+              router.push('/trash');
+            }}
+            disabled={switchingAccount}
+          >
+            <View style={styles.menuItemIcon}>
+              <Ionicons name="trash-outline" size={24} color="#ef4444" />
+            </View>
+            <View style={styles.menuItemContent}>
+              <Text style={styles.menuItemTitle}>Thùng rác</Text>
+              <Text style={styles.menuItemSubtitle}>Bài viết đã xóa</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
           
           {/* Settings */}
           <TouchableOpacity style={styles.menuItem} disabled={switchingAccount}>

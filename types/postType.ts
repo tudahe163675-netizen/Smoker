@@ -194,6 +194,7 @@ export interface CreatePostData {
   entityAccountId?: string;
   entityId?: string;
   entityType?: "Account" | "BusinessAccount" | "BarPage";
+  status?: "public" | "private";
 }
 
 export interface CreateCommentData {

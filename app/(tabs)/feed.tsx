@@ -17,8 +17,9 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
+import AnimatedHeader from '@/components/ui/AnimatedHeader';
 
 const { width } = Dimensions.get("window");
 
@@ -192,6 +193,7 @@ export default function FeedScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const barApi = new BarApiService(authState.token!!);
+  const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const fetchBars = useCallback(async (pageNum = 1, isRefresh = false) => {
@@ -266,19 +268,19 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.card} />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
       {/* Header giống style FeedHeader */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: Colors.card }}>
-        <Animated.View 
-          style={[
-            styles.header,
-            {
-              opacity: headerOpacity,
-              transform: [{ scale: headerScale }]
-            }
-          ]}
-        >
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            paddingTop: insets.top,
+            opacity: headerOpacity,
+            transform: [{ scale: headerScale }]
+          }
+        ]}
+      >
           <View>
             <Text style={styles.headerTitle}>Khám phá Bar</Text>
             <Text style={styles.headerSubtitle}>
@@ -292,8 +294,7 @@ export default function FeedScreen() {
           >
             <Ionicons name="search" size={22} color="#fff" />
           </TouchableOpacity> */}
-        </Animated.View>
-      </SafeAreaView>
+      </Animated.View>
 
       {/* LOADING STATE */}
       {loading ? (
@@ -361,13 +362,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.border,
-    shadowColor: Colors.black,
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    elevation: 8,
   },
   headerTitle: {
     fontSize: 18,

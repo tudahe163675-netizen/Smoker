@@ -22,6 +22,8 @@ import {styles} from "./style";
 import AudioPlayer from "@/components/media/AudioPlayer";
 import ImagePlayer from "@/components/media/ImagePlayer";
 import VideoPlayer from "@/components/media/VideoPlayer";
+import EditPostModal from "../EditPostModal";
+import ReportPostModal from "../ReportPostModal";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
@@ -31,13 +33,19 @@ interface RenderPostProps {
     currentEntityAccountId?: string,
     feedApiService: FeedApiService,
     customCss?: boolean,
-    disableBtn?: boolean
+    disableBtn?: boolean,
+    userRole?: string;
+    isTrashed?: boolean; // Vô hiệu hóa actions khi post ở trong thùng rác
 }
 
-export default function Index({item, currentId, currentEntityAccountId, feedApiService, customCss = true, disableBtn = false}: RenderPostProps) {
+export default function Index({item, currentId, currentEntityAccountId, feedApiService, customCss = true, disableBtn = false, userRole, isTrashed = false}: RenderPostProps) {
     const router = useRouter();
     const [data, setData] = useState<PostData>(item);
     const [currentImageIndexes, setCurrentImageIndexes] = useState<{ [key: string]: number }>({});
+    const [expandedContent, setExpandedContent] = useState<{ [key: string]: boolean }>({});
+    const [menuVisible, setMenuVisible] = useState(false);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [reportModalVisible, setReportModalVisible] = useState(false);
 
     const likeCount = data.stats?.likeCount ?? 0;
     const commentCount = data.stats?.commentCount ?? 0;
@@ -80,6 +88,100 @@ export default function Index({item, currentId, currentEntityAccountId, feedApiS
                 pathname: '/user',
                 params: {id: authorId},
             });
+        }
+    };
+
+    // Check if current user is the author
+    const isOwnPost = () => {
+        const authorId = data.author?.entityAccountId || data.entityAccountId || data.author?.entityId || data.entityId;
+        const myEntityAccountId = currentEntityAccountId || currentId;
+        return myEntityAccountId && authorId && String(myEntityAccountId).toLowerCase() === String(authorId).toLowerCase();
+    };
+
+    const handleEditPost = () => {
+        setMenuVisible(false);
+        setEditModalVisible(true);
+    };
+
+    const handleTrashPost = async () => {
+        setMenuVisible(false);
+        Alert.alert(
+            'Xác nhận',
+            'Bạn có chắc muốn bỏ bài viết vào thùng rác?',
+            [
+                { text: 'Hủy', style: 'cancel' },
+                {
+                    text: 'Xác nhận',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            if (!currentEntityAccountId) {
+                                Alert.alert('Lỗi', 'Không xác định được entityAccountId');
+                                return;
+                            }
+                            const response = await feedApiService.trashPost(data.id || data._id || '', {
+                                entityAccountId: currentEntityAccountId,
+                            });
+                            if (response.success) {
+                                Alert.alert('Thành công', 'Bài viết đã được chuyển vào thùng rác');
+                                // Optionally refresh feed or remove post from list
+                            } else {
+                                Alert.alert('Lỗi', response.message || 'Không thể chuyển bài viết vào thùng rác');
+                            }
+                        } catch (error) {
+                            console.error('Error trashing post:', error);
+                            Alert.alert('Lỗi', 'Không thể chuyển bài viết vào thùng rác');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleReportPost = () => {
+        setMenuVisible(false);
+        setReportModalVisible(true);
+    };
+
+    const handleSubmitReport = async (reason: string, details: string) => {
+        try {
+            if (!currentId) {
+                throw new Error('Không xác định được tài khoản');
+            }
+
+            // Get role from props or default to Customer
+            const role = userRole || 'Customer';
+            const normalizedRole = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+            
+            // Map role to backend format
+            const roleMap: { [key: string]: string } = {
+                'customer': 'Customer',
+                'dj': 'DJ',
+                'dancer': 'Dancer',
+                'bar': 'Bar',
+            };
+            const reporterRole = roleMap[normalizedRole.toLowerCase()] || 'Customer';
+
+            const authorId = data.author?.entityAccountId || data.entityAccountId || data.author?.entityId || data.entityId;
+            
+            const response = await feedApiService.reportPost(data.id || data._id || '', {
+                reason,
+                details,
+                reporterId: currentId,
+                reporterRole,
+                targetOwnerId: authorId,
+            });
+
+            // Check if response indicates success (either success: true or message contains "success")
+            const isSuccess = response.success === true || 
+                              (response.message && response.message.toLowerCase().includes('success'));
+            
+            if (!isSuccess) {
+                throw new Error(response.message || 'Không thể gửi báo cáo');
+            }
+        } catch (error) {
+            console.error('Error reporting post:', error);
+            throw error;
         }
     };
 
@@ -256,31 +358,74 @@ export default function Index({item, currentId, currentEntityAccountId, feedApiS
     };
 
     return (
+        <>
         <View style={customCss ? styles.card : styles.cardFull}>
             <TouchableOpacity
                 onPress={() => handlePostPress(data.id ?? '')}
-                disabled={disableBtn}
+                disabled={disableBtn || isTrashed}
             >
                 <View style={styles.cardHeader}>
                     <TouchableOpacity onPress={handleAuthorPress} activeOpacity={0.7}>
                         <Image source={{uri: data.author?.avatar ?? data.authorAvatar}} style={styles.avatar}/>
                     </TouchableOpacity>
-                    <View>
+                    <View style={{ flex: 1 }}>
                         <TouchableOpacity onPress={handleAuthorPress}  activeOpacity={0.7}>
                             <Text style={styles.username}>{data.author?.name ?? data.authorName}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handlePostPress(data.id ?? '')} disabled={disableBtn}>
-                            <Text style={styles.subText}>
-                                {formatTime(data.createdAt)}
-                            </Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <TouchableOpacity onPress={() => handlePostPress(data.id ?? '')} disabled={disableBtn}>
+                                <Text style={styles.subText}>
+                                    {formatTime(data.createdAt)}
+                                </Text>
+                            </TouchableOpacity>
+                            {/* Privacy icon */}
+                            {data.status && (
+                                <Ionicons 
+                                    name={data.status === "public" ? "globe-outline" : "lock-closed-outline"} 
+                                    size={12} 
+                                    color="#6b7280" 
+                                />
+                            )}
+                        </View>
                     </View>
+                    {/* Menu button - hide for trashed posts */}
+                    {!isTrashed && (
+                        <TouchableOpacity
+                            onPress={() => setMenuVisible(!menuVisible)}
+                            style={styles.menuButton}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="ellipsis-horizontal" size={20} color="#6b7280" />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
 
-                {data.content && (
-                    <Text style={styles.content}>{data.content}</Text>
-                )}
+                {data.content && (() => {
+                    const postId = data.id || data._id || '';
+                    const isExpanded = expandedContent[postId] || false;
+                    const MAX_LENGTH = 200;
+                    const shouldTruncate = data.content.length > MAX_LENGTH;
+                    const displayText = shouldTruncate && !isExpanded 
+                        ? data.content.substring(0, MAX_LENGTH) + '...' 
+                        : data.content;
+                    
+                    return (
+                        <View>
+                            <Text style={styles.content}>{displayText}</Text>
+                            {shouldTruncate && (
+                                <TouchableOpacity 
+                                    onPress={() => setExpandedContent(prev => ({ ...prev, [postId]: !isExpanded }))}
+                                    style={{ marginTop: 4 }}
+                                >
+                                    <Text style={styles.seeMoreText}>
+                                        {isExpanded ? 'Thu gọn' : 'Xem thêm...'}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    );
+                })()}
 
                 {isRepost && originalPost && (
                     <View style={styles.repostContainer}>
@@ -351,9 +496,31 @@ export default function Index({item, currentId, currentEntityAccountId, feedApiS
                                     )}
                                 </View>
                             </View>
-                            {originalPost.content && (
-                                <Text style={styles.originalPostContent}>{originalPost.content}</Text>
-                            )}
+                            {originalPost.content && (() => {
+                                const originalPostId = originalPost.id || originalPost._id || '';
+                                const isExpanded = expandedContent[originalPostId] || false;
+                                const MAX_LENGTH = 200;
+                                const shouldTruncate = originalPost.content.length > MAX_LENGTH;
+                                const displayText = shouldTruncate && !isExpanded
+                                    ? originalPost.content.substring(0, MAX_LENGTH) + '...'
+                                    : originalPost.content;
+
+                                return (
+                                    <View>
+                                        <Text style={styles.originalPostContent}>{displayText}</Text>
+                                        {shouldTruncate && (
+                                            <TouchableOpacity
+                                                onPress={() => setExpandedContent(prev => ({ ...prev, [originalPostId]: !isExpanded }))}
+                                                style={{ marginTop: 4 }}
+                                            >
+                                                <Text style={styles.seeMoreText}>
+                                                    {isExpanded ? 'Thu gọn' : 'Xem thêm...'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                );
+                            })()}
                         </TouchableOpacity>
                     </View>
                 )}
@@ -477,43 +644,46 @@ export default function Index({item, currentId, currentEntityAccountId, feedApiS
                     </Text>
                 </View>
 
-                <View style={styles.actions}>
-                    <TouchableOpacity
-                        style={styles.actionBtn}
-                        onPress={() => handleLike(data.id ?? data._id ?? '')}
-                    >
-                        <Ionicons
-                            name={isLiked ? "heart" : "heart-outline"}
-                            size={20}
-                            color={isLiked ? "#ef4444" : "#6b7280"}
-                        />
-                        <Text style={[
-                            styles.actionText,
-                            isLiked && {color: '#ef4444'}
-                        ]}>
-                            {isLiked ? 'Đã thích' : 'Thích'}
-                        </Text>
-                    </TouchableOpacity>
+                {!isTrashed && (
+                    <View style={styles.actions}>
+                        <TouchableOpacity
+                            style={styles.actionBtn}
+                            onPress={() => handleLike(data.id ?? data._id ?? '')}
+                        >
+                            <Ionicons
+                                name={isLiked ? "heart" : "heart-outline"}
+                                size={20}
+                                color={isLiked ? "#ef4444" : "#6b7280"}
+                            />
+                            <Text style={[
+                                styles.actionText,
+                                isLiked && {color: '#ef4444'}
+                            ]}>
+                                {isLiked ? 'Đã thích' : 'Thích'}
+                            </Text>
+                        </TouchableOpacity>
 
-                    <View
-                        style={styles.actionBtn}
-                    >
-                        <Ionicons name="chatbubble-outline" size={18} color="#6b7280"/>
-                        <Text style={styles.actionText}>Bình luận</Text>
+                        <TouchableOpacity
+                            style={styles.actionBtn}
+                            onPress={() => handlePostPress(data.id ?? data._id ?? '')}
+                        >
+                            <Ionicons name="chatbubble-outline" size={18} color="#6b7280"/>
+                            <Text style={styles.actionText}>Bình luận</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.actionBtn}
+                            onPress={() => {
+                                setRepostModalVisible(true);
+                            }}
+                        >
+                            <Ionicons name="repeat-outline" size={18} color="#6b7280"/>
+                            <Text style={styles.actionText}>Đăng lại</Text>
+                        </TouchableOpacity>
                     </View>
+                )}
 
-                    <TouchableOpacity
-                        style={styles.actionBtn}
-                        onPress={() => {
-                            setRepostModalVisible(true);
-                        }}
-                    >
-                        <Ionicons name="repeat-outline" size={18} color="#6b7280"/>
-                        <Text style={styles.actionText}>Đăng lại</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {data.topComments && data.topComments.length > 0 && (
+                {!isTrashed && data.topComments && data.topComments.length > 0 && (
                     <View style={styles.commentsPreview}>
                         {data.topComments.slice(0, 2).map((comment, index) => (
                             <TouchableOpacity
@@ -678,6 +848,78 @@ export default function Index({item, currentId, currentEntityAccountId, feedApiS
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* Menu Dropdown */}
+            {menuVisible && (
+                <Modal
+                    visible={menuVisible}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setMenuVisible(false)}
+                >
+                    <TouchableOpacity
+                        style={styles.menuOverlay}
+                        activeOpacity={1}
+                        onPress={() => setMenuVisible(false)}
+                    >
+                        <View style={styles.menuContainer}>
+                            {isOwnPost() ? (
+                                <>
+                                    <TouchableOpacity
+                                        style={styles.menuItem}
+                                        onPress={handleEditPost}
+                                    >
+                                        <Ionicons name="pencil-outline" size={20} color="#2563eb" />
+                                        <Text style={styles.menuItemText}>Chỉnh sửa</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.menuItem, styles.menuItemDanger]}
+                                        onPress={handleTrashPost}
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                                        <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>Bỏ vào thùng rác</Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <TouchableOpacity
+                                    style={[styles.menuItem, styles.menuItemDanger]}
+                                    onPress={handleReportPost}
+                                >
+                                    <Ionicons name="flag-outline" size={20} color="#ef4444" />
+                                    <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>Báo cáo</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
+            )}
+
+            {/* Edit Post Modal */}
+            <EditPostModal
+                visible={editModalVisible}
+                post={data}
+                feedApiService={feedApiService}
+                onClose={() => {
+                    setEditModalVisible(false);
+                }}
+                onUpdated={() => {
+                    // Refresh post data
+                    feedApiService.getPostDetails(data.id || data._id || '').then((response) => {
+                        if (response.success && response.data) {
+                            setData(response.data as PostData);
+                        }
+                    });
+                }}
+            />
+
+            {/* Report Post Modal */}
+            <ReportPostModal
+                visible={reportModalVisible}
+                post={data}
+                onClose={() => setReportModalVisible(false)}
+                onSubmit={handleSubmitReport}
+            />
         </View>
+        </>
     );
 }

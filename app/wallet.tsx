@@ -57,12 +57,12 @@ const formatDate = (dateString: string): string => {
       const [, year, month, day, hour, minute, second] = match;
       // Tạo date object với timezone local (không dùng timeZone option để tránh double conversion)
       const localDate = new Date(
-        parseInt(year),
-        parseInt(month) - 1,
-        parseInt(day),
-        parseInt(hour),
-        parseInt(minute),
-        parseInt(second || 0)
+        Number.parseInt(year, 10),
+        Number.parseInt(month, 10) - 1,
+        Number.parseInt(day, 10),
+        Number.parseInt(hour, 10),
+        Number.parseInt(minute, 10),
+        Number.parseInt(second || '0', 10)
       );
       // Format không dùng timeZone để giữ nguyên giờ đã parse
       return localDate.toLocaleString('vi-VN', {
@@ -100,18 +100,49 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  
+  // Pagination states
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [withdrawRequestsPage, setWithdrawRequestsPage] = useState(1);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
+  const [hasMoreWithdrawRequests, setHasMoreWithdrawRequests] = useState(true);
+  const [loadingMoreTransactions, setLoadingMoreTransactions] = useState(false);
+  const [loadingMoreWithdrawRequests, setLoadingMoreWithdrawRequests] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const TRANSACTIONS_PER_PAGE = 5;
+  const WITHDRAW_REQUESTS_PER_PAGE = 5;
+
+  const loadData = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) {
+        setTransactionsPage(1);
+        setWithdrawRequestsPage(1);
+        setHasMoreTransactions(true);
+        setHasMoreWithdrawRequests(true);
+      }
+
+      // Chỉ load khi refresh, không load lại khi scroll
+      if (!isRefresh) {
+        return; // Không load lại nếu không phải refresh
+      }
+
       const [walletData, transactionsData, withdrawRequestsData] = await Promise.all([
         getWallet(),
-        getTransactions({ limit: 50 }),
-        getWithdrawRequests(),
+        getTransactions({ offset: 0, limit: TRANSACTIONS_PER_PAGE }),
+        getWithdrawRequests({ offset: 0, limit: WITHDRAW_REQUESTS_PER_PAGE }),
       ]);
 
       if (walletData) setWallet(walletData);
-      if (transactionsData) setTransactions(transactionsData);
-      if (withdrawRequestsData) setWithdrawRequests(withdrawRequestsData);
+      
+      if (transactionsData) {
+        setTransactions(transactionsData);
+        setHasMoreTransactions(transactionsData.length === TRANSACTIONS_PER_PAGE);
+      }
+      
+      if (withdrawRequestsData) {
+        setWithdrawRequests(withdrawRequestsData);
+        setHasMoreWithdrawRequests(withdrawRequestsData.length === WITHDRAW_REQUESTS_PER_PAGE);
+      }
     } catch (error) {
       console.error('Failed to load wallet data:', error);
     } finally {
@@ -121,13 +152,59 @@ export default function WalletScreen() {
   }, [getWallet, getTransactions, getWithdrawRequests]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData(true); // Gọi với isRefresh=true để load lần đầu
+  }, []); // Empty dependency array - chỉ gọi một lần khi mount
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadData();
+    loadData(true);
   }, [loadData]);
+
+  const loadMoreTransactions = useCallback(async () => {
+    if (loadingMoreTransactions || !hasMoreTransactions) return;
+    
+    setLoadingMoreTransactions(true);
+    try {
+      const nextPage = transactionsPage + 1;
+      const offset = (nextPage - 1) * TRANSACTIONS_PER_PAGE;
+      const transactionsData = await getTransactions({ offset, limit: TRANSACTIONS_PER_PAGE });
+      
+      if (transactionsData && transactionsData.length > 0) {
+        setTransactions(prev => [...prev, ...transactionsData]);
+        setHasMoreTransactions(transactionsData.length === TRANSACTIONS_PER_PAGE);
+        setTransactionsPage(nextPage);
+      } else {
+        setHasMoreTransactions(false);
+      }
+    } catch (error) {
+      console.error('Failed to load more transactions:', error);
+    } finally {
+      setLoadingMoreTransactions(false);
+    }
+  }, [getTransactions, transactionsPage, hasMoreTransactions, loadingMoreTransactions]);
+
+  const loadMoreWithdrawRequests = useCallback(async () => {
+    if (loadingMoreWithdrawRequests || !hasMoreWithdrawRequests) return;
+    
+    setLoadingMoreWithdrawRequests(true);
+    try {
+      const nextPage = withdrawRequestsPage + 1;
+      const offset = (nextPage - 1) * WITHDRAW_REQUESTS_PER_PAGE;
+      const withdrawRequestsData = await getWithdrawRequests({ offset, limit: WITHDRAW_REQUESTS_PER_PAGE });
+      
+      if (withdrawRequestsData && withdrawRequestsData.length > 0) {
+        setWithdrawRequests(prev => [...prev, ...withdrawRequestsData]);
+        setHasMoreWithdrawRequests(withdrawRequestsData.length === WITHDRAW_REQUESTS_PER_PAGE);
+        setWithdrawRequestsPage(nextPage);
+      } else {
+        setHasMoreWithdrawRequests(false);
+      }
+    } catch (error) {
+      console.error('Failed to load more withdraw requests:', error);
+    } finally {
+      setLoadingMoreWithdrawRequests(false);
+    }
+  }, [getWithdrawRequests, withdrawRequestsPage, hasMoreWithdrawRequests, loadingMoreWithdrawRequests]);
 
   const handleWithdrawSuccess = useCallback(() => {
     setShowWithdrawModal(false);
@@ -226,7 +303,7 @@ export default function WalletScreen() {
                     </View>
                     <Text style={styles.withdrawRequestBank}>
                       {request.bankName} - {request.accountNumber}
-                      {request.accountHolderName && ` (${request.accountHolderName})`}
+                      {(request.accountHolderName || (request as any).AccountHolderName) && ` - ${request.accountHolderName || (request as any).AccountHolderName}`}
                     </Text>
                     <Text style={styles.withdrawRequestDate}>
                       {formatDate(request.requestedAt)}
@@ -237,6 +314,23 @@ export default function WalletScreen() {
                   </Text>
                 </View>
               ))}
+              {hasMoreWithdrawRequests ? (
+                <TouchableOpacity
+                  style={styles.loadMoreButton}
+                  onPress={loadMoreWithdrawRequests}
+                  disabled={loadingMoreWithdrawRequests}
+                >
+                  {loadingMoreWithdrawRequests ? (
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                  ) : (
+                    <Text style={styles.loadMoreText}>Xem thêm</Text>
+                  )}
+                </TouchableOpacity>
+              ) : withdrawRequests.length > 0 && (
+                <View style={styles.endMessage}>
+                  <Text style={styles.endText}>Hết</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -249,9 +343,28 @@ export default function WalletScreen() {
                 <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
               </View>
             ) : (
-              transactions.map((transaction) => (
-                <TransactionItem key={transaction.id} transaction={transaction} />
-              ))
+              <>
+                {transactions.map((transaction) => (
+                  <TransactionItem key={transaction.id} transaction={transaction} />
+                ))}
+                {hasMoreTransactions ? (
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={loadMoreTransactions}
+                    disabled={loadingMoreTransactions}
+                  >
+                    {loadingMoreTransactions ? (
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                    ) : (
+                      <Text style={styles.loadMoreText}>Xem thêm</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : transactions.length > 0 && (
+                  <View style={styles.endMessage}>
+                    <Text style={styles.endText}>Hết</Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -411,6 +524,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.mutedForeground,
     marginTop: 12,
+  },
+  loadMoreButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.input,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary,
+  },
+  endMessage: {
+    marginTop: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endText: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
+    fontStyle: 'italic',
   },
 });
 

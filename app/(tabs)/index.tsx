@@ -38,7 +38,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const {width: screenWidth} = Dimensions.get('window');
 
@@ -81,9 +81,12 @@ const UploadingProgressBar = ({progress}: { progress: number }) => (
 
 export default function HomeScreen() {
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const [modalVisible, setModalVisible] = useState(false);
     const [postText, setPostText] = useState('');
     const [selectedMedia, setSelectedMedia] = useState<{ uri: string; type: 'image' | 'video' }[]>([]);
+    const [postStatus, setPostStatus] = useState<'public' | 'private'>('public');
+    const [showPrivacyDropdown, setShowPrivacyDropdown] = useState(false);
     const scrollY = useRef(new Animated.Value(0)).current;
     const {authState} = useAuth();
     const currentUserId = authState.currentId;
@@ -235,6 +238,8 @@ export default function HomeScreen() {
         setModalVisible(false);
         setSelectedMedia([]);
         setPostText('');
+        setPostStatus('public');
+        setShowPrivacyDropdown(false);
     }, []);
 
     const submitPost = useCallback(async () => {
@@ -248,6 +253,7 @@ export default function HomeScreen() {
         const success = await createPost({
             content: postText,
             files: selectedMedia,
+            status: postStatus,
         });
 
         if (success) {
@@ -280,7 +286,8 @@ export default function HomeScreen() {
                 entityId: repostingItem.author?.entityId ?? repostingItem.entityId,
                 entityType: repostingItem.author?.entityType ?? repostingItem.entityType,
                 repostedFromId: repostingItem.id ?? repostingItem._id,
-                repostedFromType: repostingItem.type
+                repostedFromType: repostingItem.type,
+                status: postStatus
             }
             const response = await feedApi.rePost(request);
             if (response.success) {
@@ -340,47 +347,36 @@ export default function HomeScreen() {
     const handleRepostAction = useCallback((item: PostData) => {
         setRepostingItem(item);
         setRepostContent('');
+        setPostStatus('public'); // Reset to public when opening repost modal
+        setShowPrivacyDropdown(false);
         setRepostModalVisible(true);
     }, []);
 
     const renderItem = useCallback(({item}: { item: PostData }) => {
         return (
-            <RenderPost
-                item={item}
-                currentId={authState.currentId ?? ''}
-                currentEntityAccountId={authState.EntityAccountId}
-                feedApiService={feedApi}
-            />
+        <RenderPost
+                    item={item}
+                    currentId={authState.currentId ?? ''}
+                    currentEntityAccountId={authState.EntityAccountId}
+                    feedApiService={feedApi}
+                    userRole={authState.role}
+                />
         );
     }, [authState.currentId, authState.token, handleRepostAction]);
 
+    const headerHeight = insets.top + 64; // insets.top + header height (64)
+
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <StatusBar barStyle="dark-content" backgroundColor={Colors.card}/>
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-
-            {/* Header giống web */}
-            <FeedHeader
-                onSearchPress={() => setSearchModalVisible(true)}
-                onMessagesPress={() => router.push('/chat')}
-                onNotificationsPress={() => {
-                    // TODO: Open notifications panel
-                }}
-                onProfilePress={() => {
-                    // TODO: Open profile/sidebar
-                }}
-                unreadMessageCount={unreadCount}
-                unreadNotificationCount={0}
-            />
-            
-            {/* Plus button để tạo nội dung - giống web */}
-            <View style={styles.createButtonContainer}>
-                <TouchableOpacity
-                    style={styles.createButton}
-                    onPress={() => setCreateMenuVisible(true)}
-                >
-                    <Ionicons name="add" size={24} color={Colors.primaryForeground} />
-                </TouchableOpacity>
+            {/* Header fixed ở top - giống Facebook */}
+            <View style={[styles.fixedHeader, { paddingTop: insets.top }]}>
+                <FeedHeader
+                    onSearchPress={() => setSearchModalVisible(true)}
+                    onMessagesPress={() => router.push('/chat')}
+                    unreadMessageCount={unreadCount}
+                />
             </View>
 
             <Animated.FlatList
@@ -388,14 +384,15 @@ export default function HomeScreen() {
                 renderItem={renderItem}
                     keyExtractor={(item) => item.id ?? item._id ?? ''}
                 style={styles.container}
-                contentContainerStyle={{paddingBottom: 40, paddingTop: 8}}
+                contentContainerStyle={{paddingBottom: 40, paddingTop: headerHeight}}
                 ItemSeparatorComponent={() => (
                     <View style={{height: 8, backgroundColor: Colors.background}}/>
                 )}
                 ListHeaderComponent={
                     <>
+                        <View style={styles.headerSpacing} />
                         <PostInputBox openModal={openModal} pickMedia={pickMedia} avatar={avartarAuthor}/>
-
+                        <View style={styles.sectionSpacing} />
                         <StoryList
                             stories={validStories}
                             currentUserAvatar={avartarAuthor}
@@ -458,6 +455,67 @@ export default function HomeScreen() {
                             style={styles.modalBody}
                             showsVerticalScrollIndicator={false}
                         >
+                            {/* User Info & Privacy Selector */}
+                            <View style={styles.postUserInfo}>
+                                <Image
+                                    source={{uri: avartarAuthor ?? 'https://i.pravatar.cc/100?img=10'}}
+                                    style={styles.postUserAvatar}
+                                />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.postUserName}>{authState.userEmail || 'Bạn'}</Text>
+                                    {/* Privacy Dropdown */}
+                                    <TouchableOpacity
+                                        style={styles.privacySelector}
+                                        onPress={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons 
+                                            name={postStatus === "public" ? "globe-outline" : "lock-closed-outline"} 
+                                            size={16} 
+                                            color="#6b7280" 
+                                        />
+                                        <Text style={styles.privacyText}>
+                                            {postStatus === "public" ? "Công khai" : "Chỉ mình tôi"}
+                                        </Text>
+                                        <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                                    </TouchableOpacity>
+                                    {showPrivacyDropdown && (
+                                        <View style={styles.privacyDropdown}>
+                                            <TouchableOpacity
+                                                style={[styles.privacyOption, postStatus === "public" && styles.privacyOptionActive]}
+                                                onPress={() => {
+                                                    setPostStatus("public");
+                                                    setShowPrivacyDropdown(false);
+                                                }}
+                                            >
+                                                <Ionicons name="globe-outline" size={18} color={postStatus === "public" ? "#2563eb" : "#6b7280"} />
+                                                <View style={{ flex: 1, marginLeft: 8 }}>
+                                                    <Text style={[styles.privacyOptionText, postStatus === "public" && styles.privacyOptionTextActive]}>
+                                                        Công khai
+                                                    </Text>
+                                                    <Text style={styles.privacyOptionDesc}>Mọi người có thể xem</Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.privacyOption, postStatus === "private" && styles.privacyOptionActive]}
+                                                onPress={() => {
+                                                    setPostStatus("private");
+                                                    setShowPrivacyDropdown(false);
+                                                }}
+                                            >
+                                                <Ionicons name="lock-closed-outline" size={18} color={postStatus === "private" ? "#2563eb" : "#6b7280"} />
+                                                <View style={{ flex: 1, marginLeft: 8 }}>
+                                                    <Text style={[styles.privacyOptionText, postStatus === "private" && styles.privacyOptionTextActive]}>
+                                                        Chỉ mình tôi
+                                                    </Text>
+                                                    <Text style={styles.privacyOptionDesc}>Chỉ bạn có thể xem</Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
+                            </View>
+
                             <TextInput
                                 placeholder="Bạn đang nghĩ gì?"
                                 placeholderTextColor="#9ca3af"
@@ -609,6 +667,59 @@ export default function HomeScreen() {
                         </View>
 
                         <View style={styles.repostModalBody}>
+                            {/* Privacy Selector for Repost */}
+                            <View style={styles.repostPrivacyContainer}>
+                                <TouchableOpacity
+                                    style={styles.repostPrivacySelector}
+                                    onPress={() => setShowPrivacyDropdown(!showPrivacyDropdown)}
+                                    activeOpacity={0.7}
+                                >
+                                    <Ionicons
+                                        name={postStatus === "public" ? "globe-outline" : "lock-closed-outline"}
+                                        size={16}
+                                        color="#6b7280"
+                                    />
+                                    <Text style={styles.repostPrivacyText}>
+                                        {postStatus === "public" ? "Công khai" : "Chỉ mình tôi"}
+                                    </Text>
+                                    <Ionicons name="chevron-down" size={16} color="#6b7280" />
+                                </TouchableOpacity>
+                                {showPrivacyDropdown && (
+                                    <View style={styles.repostPrivacyDropdown}>
+                                        <TouchableOpacity
+                                            style={[styles.privacyOption, postStatus === "public" && styles.privacyOptionActive]}
+                                            onPress={() => {
+                                                setPostStatus("public");
+                                                setShowPrivacyDropdown(false);
+                                            }}
+                                        >
+                                            <Ionicons name="globe-outline" size={18} color={postStatus === "public" ? "#2563eb" : "#6b7280"} />
+                                            <View style={{ flex: 1, marginLeft: 8 }}>
+                                                <Text style={[styles.privacyOptionText, postStatus === "public" && styles.privacyOptionTextActive]}>
+                                                    Công khai
+                                                </Text>
+                                                <Text style={styles.privacyOptionDesc}>Mọi người có thể xem</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.privacyOption, postStatus === "private" && styles.privacyOptionActive]}
+                                            onPress={() => {
+                                                setPostStatus("private");
+                                                setShowPrivacyDropdown(false);
+                                            }}
+                                        >
+                                            <Ionicons name="lock-closed-outline" size={18} color={postStatus === "private" ? "#2563eb" : "#6b7280"} />
+                                            <View style={{ flex: 1, marginLeft: 8 }}>
+                                                <Text style={[styles.privacyOptionText, postStatus === "private" && styles.privacyOptionTextActive]}>
+                                                    Chỉ mình tôi
+                                                </Text>
+                                                <Text style={styles.privacyOptionDesc}>Chỉ bạn có thể xem</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
+
                             <TextInput
                                 style={styles.repostModalInput}
                                 placeholder="Thêm suy nghĩ của bạn..."
@@ -649,7 +760,7 @@ export default function HomeScreen() {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -658,24 +769,19 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: Colors.background, // Giống web: #F0F2F5
     },
-    createButtonContainer: {
+    fixedHeader: {
         position: 'absolute',
-        top: 80,
-        right: 16,
+        top: 0,
+        left: 0,
+        right: 0,
         zIndex: 100,
+        backgroundColor: Colors.card,
     },
-    createButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: Colors.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
+    headerSpacing: {
+        height: 6,
+    },
+    sectionSpacing: {
+        height: 6
     },
     postBox: {
         flexDirection: 'row',
@@ -684,8 +790,6 @@ const styles = StyleSheet.create({
         padding: 12,
         borderBottomWidth: 1,
         borderColor: Colors.border,
-        marginBottom: 8,
-        marginTop: 8,
     },
     postInput: {
         flex: 1,
@@ -1170,5 +1274,116 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#374151',
         lineHeight: 20,
+    },
+    // Privacy selector styles
+    postUserInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingBottom: 12,
+        marginBottom: 8,
+    },
+    postUserAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 12,
+    },
+    postUserName: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#111827',
+        marginBottom: 4,
+    },
+    privacySelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 8,
+        backgroundColor: '#f3f4f6',
+        alignSelf: 'flex-start',
+    },
+    privacyText: {
+        fontSize: 13,
+        color: '#6b7280',
+        fontWeight: '500',
+    },
+    privacyDropdown: {
+        position: 'absolute',
+        top: 50,
+        left: 0,
+        right: 0,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+        zIndex: 1000,
+        marginTop: 4,
+    },
+    privacyOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
+    },
+    privacyOptionActive: {
+        backgroundColor: '#eff6ff',
+    },
+    privacyOptionText: {
+        fontSize: 15,
+        color: '#111827',
+        fontWeight: '500',
+    },
+    privacyOptionTextActive: {
+        color: '#2563eb',
+    },
+    privacyOptionDesc: {
+        fontSize: 12,
+        color: '#6b7280',
+        marginTop: 2,
+    },
+    repostPrivacyContainer: {
+        marginBottom: 12,
+        position: 'relative',
+    },
+    repostPrivacySelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        backgroundColor: '#f3f4f6',
+        alignSelf: 'flex-start',
+    },
+    repostPrivacyText: {
+        fontSize: 13,
+        color: '#6b7280',
+        fontWeight: '500',
+    },
+    repostPrivacyDropdown: {
+        position: 'absolute',
+        top: 50,
+        left: 0,
+        right: 0,
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+        zIndex: 1000,
+        marginTop: 4,
     },
 });

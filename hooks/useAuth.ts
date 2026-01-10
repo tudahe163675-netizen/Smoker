@@ -46,8 +46,13 @@ export const useAuth = () => {
     try {
       const res = await loginApi(email, password);
 
-      if (!res.token) {
-        Alert.alert('Đăng nhập thất bại', res.message ?? 'Email hoặc mật khẩu không đúng');
+      // Kiểm tra nếu có lỗi từ API
+      // Backend trả về token trực tiếp khi thành công, không có field success
+      // Nếu có status 401 hoặc không có token thì là lỗi
+      if (res.status === 401 || !res.token) {
+        const errorMessage = res.message || res.error || 'Email hoặc mật khẩu không đúng';
+        Alert.alert('Đăng nhập thất bại', errorMessage);
+        console.log('Login failed:', res);
         return;
       }
 

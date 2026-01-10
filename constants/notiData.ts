@@ -1,6 +1,6 @@
 export interface Notification {
     _id: string;
-    type: 'like' | 'comment' | 'follow' | 'post' | 'mention';
+    type: 'like' | 'comment' | 'follow' | 'post' | 'mention' | 'withdraw' | 'wallet' | 'livestream';
     sender: {
         name: string;
         avatar: string;

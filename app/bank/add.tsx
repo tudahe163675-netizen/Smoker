@@ -136,20 +136,25 @@ export default function AddBankScreen() {
       setLoading(true);
       const bankInfoApi = createBankInfoApi(authState.token);
       
-      const payload = {
-        AccountId: authState.currentId,
-        BankName: bankName.trim(),
-        AccountNumber: accountNumber.trim(),
-        AccountHolderName: accountHolderName.trim(),
-      };
-
       let response;
       if (existingBankInfo && existingBankInfo.BankInfoId) {
-        // Update existing
-        response = await bankInfoApi.update(existingBankInfo.BankInfoId, payload);
+        // Update existing - chỉ gửi các field cần update, không gửi AccountId
+        // Backend expect camelCase (giống web)
+        const updatePayload = {
+          bankName: bankName.trim(),
+          accountNumber: accountNumber.trim(),
+          accountHolderName: accountHolderName.trim(),
+        };
+        response = await bankInfoApi.update(existingBankInfo.BankInfoId, updatePayload);
       } else {
-        // Create new
-        response = await bankInfoApi.create(payload);
+        // Create new - cần AccountId
+        const createPayload = {
+          AccountId: authState.currentId,
+          BankName: bankName.trim(),
+          AccountNumber: accountNumber.trim(),
+          AccountHolderName: accountHolderName.trim(),
+        };
+        response = await bankInfoApi.create(createPayload);
       }
 
       if (response.success) {

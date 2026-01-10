@@ -38,6 +38,14 @@ export class FeedApiService {
                 throw new Error(data.message || 'API request failed');
             }
 
+            // If response is ok but doesn't have success field, add it
+            if (response.ok && data.success === undefined) {
+                return {
+                    ...data,
+                    success: true,
+                };
+            }
+
             return data;
         } catch (error) {
             console.error('API Error:', error);
@@ -143,7 +151,7 @@ export class FeedApiService {
         return this.makeRequest<PostData>(`/posts/${postId}?includeMedias=true&includeMusic=true`);
     }
 
-    async updatePost(postId: string, postData: { content: string }): Promise<ApiResponse<Post>> {
+    async updatePost(postId: string, postData: { content?: string; status?: string; images?: any; videos?: any; medias?: any[] }): Promise<ApiResponse<Post>> {
         return this.makeRequest<Post>(`/posts/${postId}`, {
             method: 'PUT',
             body: JSON.stringify(postData),
@@ -153,6 +161,29 @@ export class FeedApiService {
     async deletePost(postId: string): Promise<ApiResponse<null>> {
         return this.makeRequest<null>(`/posts/${postId}`, {
             method: 'DELETE',
+        });
+    }
+
+    async trashPost(postId: string, data: { entityAccountId: string }): Promise<ApiResponse<null>> {
+        return this.makeRequest<null>(`/posts/${postId}/trash`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async getTrashedPosts(params?: { page?: number; limit?: number; entityAccountId?: string }): Promise<ApiResponse<Post[]>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.entityAccountId) queryParams.append('entityAccountId', params.entityAccountId);
+        const queryString = queryParams.toString();
+        return this.makeRequest<Post[]>(`/posts/trash${queryString ? `?${queryString}` : ''}`);
+    }
+
+    async restorePost(postId: string, data?: { entityAccountId: string }): Promise<ApiResponse<null>> {
+        return this.makeRequest<null>(`/posts/${postId}/restore`, {
+            method: 'POST',
+            body: data ? JSON.stringify(data) : undefined,
         });
     }
 
@@ -277,6 +308,28 @@ export class FeedApiService {
                 'Content-Type': 'multipart/form-data',
             },
             body: formData,
+        });
+    }
+
+    async reportPost(postId: string, reportData: {
+        reason: string;
+        details?: string;
+        reporterId: string;
+        reporterRole: string;
+        targetOwnerId?: string;
+    }): Promise<ApiResponse<null>> {
+        return this.makeRequest<null>('/reports', {
+            method: 'POST',
+            body: JSON.stringify({
+                ReporterId: reportData.reporterId,
+                ReporterRole: reportData.reporterRole,
+                TargetType: 'post',
+                TargetId: postId,
+                TargetOwnerId: reportData.targetOwnerId,
+                Reason: reportData.reason,
+                Description: reportData.details || '',
+                Status: 'Pending',
+            }),
         });
     }
 }
