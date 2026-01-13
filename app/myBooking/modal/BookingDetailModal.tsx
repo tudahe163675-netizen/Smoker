@@ -6,12 +6,19 @@ import {
     StyleSheet,
     TouchableOpacity,
     Pressable,
+    Image,
+    ActivityIndicator,
+    Alert,
+    Platform,
 } from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {format} from 'date-fns';
 import {vi} from 'date-fns/locale';
 import {useRouter} from "expo-router";
+import {useState, useEffect} from "react";
+import {BarApiService} from "@/services/barApi";
+import {useAuth} from "@/hooks/useAuth";
 
 interface BookingDetailModalProps {
     dataBooking: any;
@@ -25,6 +32,44 @@ export default function BookingDetailModal({
                                                onClose,
                                            }: BookingDetailModalProps) {
     const router = useRouter();
+    const {authState} = useAuth();
+    const [qrCode, setQrCode] = useState<string | null>(null);
+    const [loadingQR, setLoadingQR] = useState(false);
+    const [savingQR, setSavingQR] = useState(false);
+    const barApi = new BarApiService(authState.token!);
+
+    useEffect(() => {
+        if (visible && dataBooking.scheduleStatus === 'Confirmed' && !qrCode) {
+            fetchQRCode();
+        }
+    }, [visible, dataBooking.scheduleStatus]);
+
+    const fetchQRCode = async () => {
+        if (!dataBooking.bookedScheduleId) return;
+        
+        setLoadingQR(true);
+        try {
+            const response = await barApi.getBookingQRCode(dataBooking.bookedScheduleId);
+            if (response.success && response.data?.qrCode) {
+                setQrCode(response.data.qrCode);
+            }
+        } catch (error) {
+            console.error("Error fetching QR code:", error);
+        } finally {
+            setLoadingQR(false);
+        }
+    };
+
+    const saveQRCode = async () => {
+        if (!qrCode) return;
+        // For now, just show a message. Can be enhanced later with file system access
+        Alert.alert(
+            "QR Code", 
+            "Vui lòng chụp màn hình để lưu QR code này. Hoặc hiển thị mã này tại quán để check-in.",
+            [{ text: "Đã hiểu" }]
+        );
+    };
+
     if (!visible) return (<></>);
     const isBar = dataBooking.type === "BarTable"
     const statusConfig = {
@@ -43,6 +88,14 @@ export default function BookingDetailModal({
         canceled: {
             label: "Đã huỷ",
             color: "#ef4444",
+        },
+        arrived: {
+            label: "Đã đến quán",
+            color: "#3b82f6",
+        },
+        ended: {
+            label: "Đã kết thúc",
+            color: "#6b7280",
         },
     };
     const statusKey = dataBooking.scheduleStatus.toLowerCase();
@@ -264,6 +317,56 @@ export default function BookingDetailModal({
                                 style={styles.total}>{dataBooking.detailSchedule.offeredPrice.toLocaleString('vi-VN')} ₫</Text>
                         </View>*/}
 
+                        {/* QR Code Section - Only show when status is Confirmed */}
+                        {dataBooking.scheduleStatus === 'Confirmed' && (
+                            <View style={styles.qrSection}>
+                                <Text style={styles.qrTitle}>Mã QR Check-in</Text>
+                                <Text style={styles.qrSubtitle}>
+                                    Hiển thị mã QR này tại quán để check-in
+                                </Text>
+                                
+                                {loadingQR ? (
+                                    <View style={styles.qrLoadingContainer}>
+                                        <ActivityIndicator size="large" color="#3b82f6" />
+                                        <Text style={styles.qrLoadingText}>Đang tải QR code...</Text>
+                                    </View>
+                                ) : qrCode ? (
+                                    <View style={styles.qrContainer}>
+                                        <Image 
+                                            source={{ uri: `data:image/png;base64,${qrCode}` }}
+                                            style={styles.qrImage}
+                                            resizeMode="contain"
+                                        />
+                                        <TouchableOpacity 
+                                            style={styles.saveQRButton}
+                                            onPress={saveQRCode}
+                                            disabled={savingQR}
+                                        >
+                                            {savingQR ? (
+                                                <ActivityIndicator size="small" color="#fff" />
+                                            ) : (
+                                                <>
+                                                    <Ionicons name="download-outline" size={18} color="#fff" />
+                                                    <Text style={styles.saveQRText}>Tải QR code</Text>
+                                                </>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={styles.qrErrorContainer}>
+                                        <Ionicons name="alert-circle-outline" size={24} color="#ef4444" />
+                                        <Text style={styles.qrErrorText}>Không thể tải QR code</Text>
+                                        <TouchableOpacity 
+                                            style={styles.retryButton}
+                                            onPress={fetchQRCode}
+                                        >
+                                            <Text style={styles.retryButtonText}>Thử lại</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
                         {/* Tổng tiền */}
                         <View style={styles.priceRow}>
                             <Text style={styles.priceLabel}>Tổng tiền</Text>
@@ -393,5 +496,80 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#64748b",
         marginBottom: 7
+    },
+    qrSection: {
+        marginTop: 16,
+        marginBottom: 16,
+        padding: 16,
+        backgroundColor: "#f8fafc",
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#e2e8f0",
+    },
+    qrTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#0f172a",
+        marginBottom: 4,
+    },
+    qrSubtitle: {
+        fontSize: 13,
+        color: "#64748b",
+        marginBottom: 16,
+    },
+    qrLoadingContainer: {
+        alignItems: "center",
+        paddingVertical: 40,
+    },
+    qrLoadingText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: "#64748b",
+    },
+    qrContainer: {
+        alignItems: "center",
+    },
+    qrImage: {
+        width: 200,
+        height: 200,
+        backgroundColor: "#fff",
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 16,
+    },
+    saveQRButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#3b82f6",
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 8,
+        gap: 8,
+    },
+    saveQRText: {
+        color: "#fff",
+        fontSize: 14,
+        fontWeight: "600",
+    },
+    qrErrorContainer: {
+        alignItems: "center",
+        paddingVertical: 20,
+    },
+    qrErrorText: {
+        marginTop: 8,
+        fontSize: 14,
+        color: "#ef4444",
+        marginBottom: 12,
+    },
+    retryButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        backgroundColor: "#f1f5f9",
+        borderRadius: 6,
+    },
+    retryButtonText: {
+        fontSize: 13,
+        color: "#3b82f6",
+        fontWeight: "600",
     },
 });

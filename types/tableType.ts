@@ -49,6 +49,8 @@ export interface BookingDetail {
   Note: string;
 }
 
+export type BookingScheduleStatus = 'Pending' | 'Confirmed' | 'Arrived' | 'Ended' | 'Canceled' | 'Rejected';
+
 export interface BookingItem {
   BookedScheduleId: string;
   BookerId: string;
@@ -56,13 +58,14 @@ export interface BookingItem {
   Type: string;
   TotalAmount: number;
   PaymentStatus: string;
-  ScheduleStatus: string;
+  ScheduleStatus: BookingScheduleStatus;
   BookingDate: string;
   StartTime: string;
   EndTime: string;
   MongoDetailId: string;
   created_at: string;
   detailSchedule: BookingDetail;
+  qrCode?: string; // Optional QR code (base64 string)
 }
 
 export interface BookingListResponse {
@@ -101,5 +104,80 @@ export interface PaymentResponse {
     paymentUrl: string;
     orderCode: number;
     bookingId: string;
+  };
+}
+
+// Combo Types
+export interface Combo {
+  comboId: string;
+  comboName: string;
+  description?: string;
+  price: number;
+  salePrice?: number;
+  image?: string;
+  items?: string[];
+  suitable?: string;
+}
+
+export interface ComboListResponse {
+  success: boolean;
+  data: Combo[];
+}
+
+// Voucher Types
+export interface Voucher {
+  voucherId: string;
+  voucherCode: string;
+  voucherName: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+  validFrom: string;
+  validTo: string;
+}
+
+export interface VoucherValidationResponse {
+  success: boolean;
+  valid: boolean;
+  message: string;
+  data?: {
+    voucher: Voucher;
+    discountAmount: number;
+  };
+}
+
+// Create Booking with Combo Request
+export interface CreateBookingWithComboRequest {
+  receiverId: string;
+  comboId: string;
+  voucherCode?: string;
+  tableId: string;
+  bookingDate: string;
+  startTime: string;
+  endTime: string;
+  note?: string;
+}
+
+// QR Code Types
+export interface QRCodeResponse {
+  success: boolean;
+  data: {
+    qrCode: string; // base64 string
+    bookingId: string;
+  };
+}
+
+export interface ScanQRRequest {
+  qrData: string;
+  barId: string;
+}
+
+export interface ScanQRResponse {
+  success: boolean;
+  data: {
+    booking: BookingItem;
+    canConfirm: boolean;
+    message: string;
   };
 }

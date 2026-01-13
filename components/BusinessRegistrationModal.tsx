@@ -1,7 +1,9 @@
 import { UserEntity } from '@/constants/authData';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { formatAddressForSave, validateAddressFields } from '@/utils/addressFormatter';
+import Dropdown from './Dropdown';
 import {
   ActivityIndicator,
   Alert,
@@ -67,13 +69,99 @@ export const BusinessRegistrationModal: React.FC<BusinessRegistrationModalProps>
     name: '',
     phone: '',
     email: '',
-    address: '',
+    address: '', // Will store JSON string: {"detail":"13","provinceId":"1","districtId":"21","wardId":"617"}
     bio: '',
     gender: 'male',
     pricePerHours: '',
     pricePerSession: '',
     genre: '',
   });
+
+  // Location states for AddressSelector
+  const [selectedProvinceId, setSelectedProvinceId] = useState('');
+  const [selectedDistrictId, setSelectedDistrictId] = useState('');
+  const [selectedWardId, setSelectedWardId] = useState('');
+  const [addressDetail, setAddressDetail] = useState('');
+  const [provinces, setProvinces] = useState<Array<{ value: string; label: string }>>([]);
+  const [districts, setDistricts] = useState<Array<{ value: string; label: string }>>([]);
+  const [wards, setWards] = useState<Array<{ value: string; label: string }>>([]);
+
+  // Load provinces on mount
+  useEffect(() => {
+    const loadProvinces = async () => {
+      try {
+        const res = await fetch('https://open.oapi.vn/location/provinces?page=0&size=100');
+        const data = await res.json();
+        setProvinces(
+          data.data.map((x: any) => ({
+            value: x.id,
+            label: `${x.name} (${x.typeText})`,
+          }))
+        );
+      } catch (e) {
+        console.error('Failed to load provinces:', e);
+      }
+    };
+    loadProvinces();
+  }, []);
+
+  // Load districts when province is selected
+  useEffect(() => {
+    if (!selectedProvinceId) {
+      setDistricts([]);
+      setWards([]);
+      return;
+    }
+    const loadDistricts = async () => {
+      try {
+        const res = await fetch(`https://open.oapi.vn/location/districts/${selectedProvinceId}?page=0&size=100`);
+        const data = await res.json();
+        setDistricts(
+          data.data.map((x: any) => ({
+            value: x.id,
+            label: `${x.name} (${x.typeText})`,
+          }))
+        );
+        setWards([]);
+      } catch (e) {
+        console.error('Failed to load districts:', e);
+      }
+    };
+    loadDistricts();
+  }, [selectedProvinceId]);
+
+  // Load wards when district is selected
+  useEffect(() => {
+    if (!selectedDistrictId) {
+      setWards([]);
+      return;
+    }
+    const loadWards = async () => {
+      try {
+        const res = await fetch(`https://open.oapi.vn/location/wards/${selectedDistrictId}?page=0&size=100`);
+        const data = await res.json();
+        setWards(
+          data.data.map((x: any) => ({
+            value: x.id,
+            label: `${x.name} (${x.typeText})`,
+          }))
+        );
+      } catch (e) {
+        console.error('Failed to load wards:', e);
+      }
+    };
+    loadWards();
+  }, [selectedDistrictId]);
+
+  // Update address JSON when location fields change
+  useEffect(() => {
+    if (validateAddressFields(addressDetail, selectedProvinceId, selectedDistrictId, selectedWardId)) {
+      const addressJson = formatAddressForSave(addressDetail, selectedProvinceId, selectedDistrictId, selectedWardId);
+      if (addressJson) {
+        setFormData(prev => ({ ...prev, address: addressJson }));
+      }
+    }
+  }, [addressDetail, selectedProvinceId, selectedDistrictId, selectedWardId]);
 
   const handleSelectType = (type: BusinessType) => {
     setBusinessType(type);
@@ -365,14 +453,57 @@ export const BusinessRegistrationModal: React.FC<BusinessRegistrationModalProps>
             />
           </View>
 
+          {/* Address Section */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Địa chỉ *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="VD: Quận 1, TP.HCM"
-              value={formData.address}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, address: text }))}
-            />
+            
+            {/* Province */}
+            <View style={[styles.input, { marginBottom: 12 }]}>
+              <Dropdown
+                data={provinces}
+                placeholder="Chọn Tỉnh/Thành phố"
+                onChange={(item) => {
+                  setSelectedProvinceId(item.value);
+                  setSelectedDistrictId('');
+                  setSelectedWardId('');
+                }}
+              />
+            </View>
+
+            {/* District */}
+            {selectedProvinceId && (
+              <View style={[styles.input, { marginBottom: 12 }]}>
+                <Dropdown
+                  data={districts}
+                  placeholder="Chọn Quận/Huyện"
+                  onChange={(item) => {
+                    setSelectedDistrictId(item.value);
+                    setSelectedWardId('');
+                  }}
+                />
+              </View>
+            )}
+
+            {/* Ward */}
+            {selectedDistrictId && (
+              <>
+                <View style={[styles.input, { marginBottom: 12 }]}>
+                  <Dropdown
+                    data={wards}
+                    placeholder="Chọn Phường/Xã"
+                    onChange={(item) => setSelectedWardId(item.value)}
+                  />
+                </View>
+
+                {/* Address Detail */}
+                <TextInput
+                  style={styles.input}
+                  placeholder="Số nhà, tên đường..."
+                  value={addressDetail}
+                  onChangeText={setAddressDetail}
+                />
+              </>
+            )}
           </View>
 
           <View style={styles.inputGroup}>

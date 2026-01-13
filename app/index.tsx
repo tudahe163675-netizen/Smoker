@@ -1,9 +1,9 @@
 import { useAuth } from '@/hooks/useAuth';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import LandingScreen from './landing';
+import { StyleSheet } from 'react-native';
 
 export default function IndexScreen() {
   const router = useRouter();
@@ -22,27 +22,20 @@ export default function IndexScreen() {
       if (isAuthenticated) {
         // Nếu đã đăng nhập, chuyển đến trang chính
         router.replace('/(tabs)');
-      } else {
-        // Nếu chưa đăng nhập, chuyển đến trang login
-        router.replace('/auth/login');
       }
+      // Nếu chưa đăng nhập, hiển thị landing page (không redirect)
     };
 
     checkAuthAndRedirect();
   }, [authState.isAuthenticated, router]);
 
-  // Hiển thị logo trong khi kiểm tra
-  return (
-    <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Image
-          source={require('@/assets/images/13.png')}
-          style={styles.logo}
-          contentFit="contain"
-        />
-      </View>
-    </View>
-  );
+  // Hiển thị landing page nếu chưa đăng nhập
+  if (!authState.isAuthenticated) {
+    return <LandingScreen />;
+  }
+
+  // Nếu đã đăng nhập, component sẽ redirect trong useEffect
+  return null;
 }
 
 const styles = StyleSheet.create({

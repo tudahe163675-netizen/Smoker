@@ -11,12 +11,12 @@ import {
   Image,
   RefreshControl,
   StatusBar,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Tách SearchBar thành component riêng và memo

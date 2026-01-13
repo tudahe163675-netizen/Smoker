@@ -34,6 +34,16 @@ export class FeedApiService {
 
             const data = await response.json();
 
+            // Handle 409 Conflict (Already following) gracefully
+            if (response.status === 409) {
+                return {
+                    success: false,
+                    message: data.message || 'Already following',
+                    error: data.message || 'Already following',
+                    data: data.data || { isFollowing: true } // Return isFollowing: true for 409
+                };
+            }
+
             if (!response.ok) {
                 throw new Error(data.message || 'API request failed');
             }
@@ -248,7 +258,8 @@ export class FeedApiService {
     }
 
     async getViewInformation(userId: string): Promise<ApiResponse<User>> {
-        return this.makeRequest<User>(`/user/by-entity/${userId}`);
+        // Use /profile/{entityId} endpoint like web
+        return this.makeRequest<User>(`/profile/${userId}`);
     }
 
     async getUserPosts(accountId: string): Promise<ApiResponse<Post[]>> {
@@ -265,12 +276,32 @@ export class FeedApiService {
     async followUser(followerId: string, followingId: string, followingType: string): Promise<ApiResponse<{
         isFollowing: boolean
     }>> {
+        // Validate required fields
+        if (!followerId || !followingId || !followingType) {
+            console.error('[FeedApi] Missing required fields for followUser:', {
+                hasFollowerId: !!followerId,
+                hasFollowingId: !!followingId,
+                hasFollowingType: !!followingType
+            });
+            return {
+                success: false,
+                message: 'Missing required fields: followerId, followingId, and followingType are required.',
+                error: 'Missing required fields'
+            };
+        }
+        
+        console.log('[FeedApi] followUser request:', {
+            followerId,
+            followingId,
+            followingType
+        });
+        
         return this.makeRequest<{ isFollowing: boolean }>(`/follow/follow`, {
             method: 'POST',
             body: JSON.stringify({
-                followerId,
-                followingId,
-                followingType,
+                followerId: String(followerId).trim(),
+                followingId: String(followingId).trim(),
+                followingType: String(followingType).trim(),
             })
         });
     }

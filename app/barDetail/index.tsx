@@ -1,21 +1,26 @@
 import {useBar} from "@/hooks/useBar";
-import {BarTable} from "@/types/tableType";
+import {BarTable, Combo} from "@/types/tableType";
 import {Ionicons} from "@expo/vector-icons";
 import {useFocusEffect} from "@react-navigation/native";
 import {LinearGradient} from "expo-linear-gradient";
 import {useLocalSearchParams, useRouter} from "expo-router";
 import React, {useEffect, useState} from "react";
+import {BarApiService} from "@/services/barApi";
+import {useAuth} from "@/hooks/useAuth";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
     ActivityIndicator,
     Alert,
     Dimensions,
     Image,
+    Platform,
     Pressable,
     RefreshControl,
     ScrollView,
     StatusBar,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View,
 } from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
@@ -100,23 +105,6 @@ const TableCard: React.FC<{
                         {item.tableTypeName}
                     </Text>
                 </View>
-
-                <View style={styles.tableCapacityRow}>
-                    <Ionicons
-                        name="people"
-                        size={14}
-                        color={isBooked ? "#94a3b8" : isSelected ? item.color : "#64748b"}
-                    />
-                    <Text
-                        style={[
-                            styles.tableCapacity,
-                            isBooked && styles.tableTextBooked,
-                            isSelected && {color: item.color},
-                        ]}
-                    >
-                        {item.capacity} người
-                    </Text>
-                </View>
             </View>
 
             {/* Price Section */}
@@ -128,7 +116,7 @@ const TableCard: React.FC<{
                         isSelected && {color: item.color},
                     ]}
                 >
-                    {item.depositPrice.toLocaleString()}₫
+                    {(item.depositPrice || 0).toLocaleString()}₫
                 </Text>
                 <Text style={styles.priceLabel}>Giá cọc</Text>
             </View>
@@ -203,6 +191,8 @@ const Index: React.FC<any> = ({}) => {
         createBooking,
         createPaymentLink,
     } = useBar();
+    const {authState} = useAuth();
+    const barApi = new BarApiService(authState.token!);
     const [refreshing, setRefreshing] = useState(false);
     const [visible, setVisible] = useState(false);
     const [data, setData] = useState<any>();
@@ -210,11 +200,37 @@ const Index: React.FC<any> = ({}) => {
     const [selectedDate, setSelectedDate] = useState(
         new Date().toISOString().split("T")[0]
     );
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [combos, setCombos] = useState<Combo[]>([]);
+    const [loadingCombos, setLoadingCombos] = useState(false);
+    const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
 
     useEffect(() => {
         fetchBarDetail(id);
         fetchTables(id);
+        fetchCombos(id);
     }, [id]);
+
+    const fetchCombos = async (barId: string) => {
+        setLoadingCombos(true);
+        try {
+            const response = await barApi.getBarCombos(barId);
+            // Handle response format like web: can be array directly or { data: [...] }
+            const combosData = response.data || [];
+            if (Array.isArray(combosData)) {
+                setCombos(combosData);
+            } else if (combosData.data && Array.isArray(combosData.data)) {
+                setCombos(combosData.data);
+            } else {
+                setCombos([]);
+            }
+        } catch (error) {
+            console.error("Error fetching combos:", error);
+            setCombos([]);
+        } finally {
+            setLoadingCombos(false);
+        }
+    };
 
     useEffect(() => {
         if (barDetail?.entityAccountId) {
@@ -276,30 +292,41 @@ const Index: React.FC<any> = ({}) => {
         });
     };
 
-    const calculateTotalDepositAmount = (): number => {
-        if (!selectedTables || selectedTables.length === 0) return 0;
-        return selectedTables.reduce((sum, table) => sum + table.depositPrice, 0);
+    // Giá chỉ tính từ combo, không tính từ bàn
+    const calculateTotalAmount = (): number => {
+        if (!selectedCombo) return 0;
+        return selectedCombo.salePrice || selectedCombo.price || 0;
     };
 
     const handleBookingPress = () => {
-        if (selectedTables.length === 0) {
-            Alert.alert("Thông báo", "Vui lòng chọn ít nhất một bàn!");
+        if (!selectedCombo) {
+            Alert.alert("Thông báo", "Vui lòng chọn combo!");
             return;
         }
-        const totalDepositAmount = calculateTotalDepositAmount();
+        if (selectedTables.length === 0) {
+            Alert.alert("Thông báo", "Vui lòng chọn một bàn!");
+            return;
+        }
+        if (selectedTables.length > 1) {
+            Alert.alert("Thông báo", "Vui lòng chọn chỉ một bàn!");
+            return;
+        }
+        const totalAmount = calculateTotalAmount();
         const bookingData = {
             receiverId: barDetail!.entityAccountId,
             tables: selectedTables.map((t) => ({
                 id: t.tableId,
                 tableName: t.tableName,
-                price: t.depositPrice,
+                price: 0, // Giá từ combo, không từ bàn
             })),
-            note: `Đặt bàn - ${new Date().toLocaleString()}`,
-            totalAmount: totalDepositAmount,
+            selectedCombo: selectedCombo,
+            selectedDate: selectedDate,
+            note: "",
+            totalAmount: totalAmount,
             startTime: `${selectedDate}T00:00:00.000Z`,
             endTime: `${selectedDate}T23:59:59.999Z`,
             paymentStatus: "Pending",
-            scheduleStatus: "Confirmed",
+            scheduleStatus: "Pending",
         };
         setData(bookingData);
         setVisible(true)
@@ -424,6 +451,196 @@ const Index: React.FC<any> = ({}) => {
                     </View>
                 </View>
 
+                {/* Date Picker Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View>
+                            <Text style={styles.sectionTitle}>Chọn ngày</Text>
+                            <Text style={styles.sectionSubtitle}>
+                                Chọn ngày bạn muốn đặt bàn
+                            </Text>
+                        </View>
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.datePickerButton}
+                        onPress={() => setShowDatePicker(true)}
+                    >
+                        <Ionicons name="calendar-outline" size={20} color="#3b82f6" />
+                        <Text style={styles.datePickerText}>
+                            {new Date(selectedDate).toLocaleDateString("vi-VN", {
+                                weekday: "long",
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                            })}
+                        </Text>
+                        <Ionicons name="chevron-down" size={20} color="#64748b" />
+                    </TouchableOpacity>
+
+                    {showDatePicker && (
+                        <DateTimePicker
+                            value={new Date(selectedDate)}
+                            mode="date"
+                            display={Platform.OS === "ios" ? "spinner" : "default"}
+                            minimumDate={new Date()}
+                            onChange={(event, date) => {
+                                if (Platform.OS === "android") {
+                                    setShowDatePicker(false);
+                                }
+                                if (date) {
+                                    setSelectedDate(date.toISOString().split("T")[0]);
+                                    if (Platform.OS === "ios") {
+                                        setShowDatePicker(false);
+                                    }
+                                }
+                            }}
+                        />
+                    )}
+                </View>
+
+                {/* Combo Section */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <View>
+                            <Text style={styles.sectionTitle}>Combo Menu</Text>
+                            <Text style={styles.sectionSubtitle}>
+                                {combos.length} combo có sẵn
+                            </Text>
+                        </View>
+                    </View>
+
+                    {loadingCombos ? (
+                        <View style={styles.loadingComboContainer}>
+                            <ActivityIndicator size="large" color="#3b82f6"/>
+                            <Text style={styles.loadingText}>Đang tải combo...</Text>
+                        </View>
+                    ) : combos.length === 0 ? (
+                        <View style={styles.emptyComboContainer}>
+                            <Ionicons name="restaurant-outline" size={64} color="#cbd5e1"/>
+                            <Text style={styles.emptyComboText}>Chưa có combo nào</Text>
+                        </View>
+                    ) : (
+                        <ScrollView 
+                            horizontal 
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.comboScrollContainer}
+                        >
+                            {combos.map((combo) => (
+                                <TouchableOpacity
+                                    key={combo.comboId}
+                                    style={[
+                                        styles.comboCard,
+                                        selectedCombo?.comboId === combo.comboId && styles.comboCardSelected,
+                                    ]}
+                                    onPress={() => setSelectedCombo(combo)}
+                                >
+                                    <LinearGradient
+                                        colors={
+                                            selectedCombo?.comboId === combo.comboId
+                                                ? ["#3b82f6", "#2563eb"]
+                                                : ["#fff", "#f8fafc"]
+                                        }
+                                        style={styles.comboCardGradient}
+                                    >
+                                        {combo.image && (
+                                            <Image
+                                                source={{ uri: combo.image }}
+                                                style={styles.comboImage}
+                                                resizeMode="cover"
+                                            />
+                                        )}
+                                        <View style={styles.comboCardContent}>
+                                            <Text
+                                                style={[
+                                                    styles.comboCardTitle,
+                                                    selectedCombo?.comboId === combo.comboId && styles.comboCardTitleSelected,
+                                                ]}
+                                                numberOfLines={2}
+                                            >
+                                                {combo.comboName}
+                                            </Text>
+                                            {combo.description && (
+                                                <Text
+                                                    style={[
+                                                        styles.comboCardDescription,
+                                                        selectedCombo?.comboId === combo.comboId && styles.comboCardDescriptionSelected,
+                                                    ]}
+                                                    numberOfLines={2}
+                                                >
+                                                    {combo.description}
+                                                </Text>
+                                            )}
+                                            <View style={styles.comboCardPriceRow}>
+                                                {combo.salePrice && combo.salePrice < combo.price ? (
+                                                    <>
+                                                        <Text
+                                                            style={[
+                                                                styles.comboCardOriginalPrice,
+                                                                selectedCombo?.comboId === combo.comboId && styles.comboCardOriginalPriceSelected,
+                                                            ]}
+                                                        >
+                                                            {combo.price.toLocaleString()}₫
+                                                        </Text>
+                                                        <Text
+                                                            style={[
+                                                                styles.comboCardSalePrice,
+                                                                selectedCombo?.comboId === combo.comboId && styles.comboCardSalePriceSelected,
+                                                            ]}
+                                                        >
+                                                            {combo.salePrice.toLocaleString()}₫
+                                                        </Text>
+                                                    </>
+                                                ) : (
+                                                    <Text
+                                                        style={[
+                                                            styles.comboCardSalePrice,
+                                                            selectedCombo?.comboId === combo.comboId && styles.comboCardSalePriceSelected,
+                                                        ]}
+                                                    >
+                                                        {combo.price.toLocaleString()}₫
+                                                    </Text>
+                                                )}
+                                            </View>
+                                            {combo.suitable && (
+                                                <Text
+                                                    style={[
+                                                        styles.comboCardSuitable,
+                                                        selectedCombo?.comboId === combo.comboId && styles.comboCardSuitableSelected,
+                                                    ]}
+                                                >
+                                                    {combo.suitable}
+                                                </Text>
+                                            )}
+                                            {selectedCombo?.comboId === combo.comboId && (
+                                                <View style={styles.comboCardCheckBadge}>
+                                                    <Ionicons name="checkmark-circle" size={20} color="#fff"/>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    )}
+
+                    {selectedCombo && (
+                        <View style={styles.selectedComboInfo}>
+                            <LinearGradient
+                                colors={["#10b981", "#059669"]}
+                                start={{x: 0, y: 0}}
+                                end={{x: 1, y: 0}}
+                                style={styles.selectedComboInfoGradient}
+                            >
+                                <Ionicons name="checkmark-circle" size={20} color="#fff"/>
+                                <Text style={styles.selectedComboInfoText}>
+                                    Đã chọn: {selectedCombo.comboName} • {(selectedCombo.salePrice || selectedCombo.price).toLocaleString()}₫
+                                </Text>
+                            </LinearGradient>
+                        </View>
+                    )}
+                </View>
+
                 {/* Tables Section */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
@@ -433,7 +650,6 @@ const Index: React.FC<any> = ({}) => {
                                 {tables.length} bàn có sẵn
                             </Text>
                         </View>
-                        <Ionicons name="calendar-outline" size={24} color="#3b82f6"/>
                     </View>
 
                     {selectedTables.length > 0 && (
@@ -446,8 +662,7 @@ const Index: React.FC<any> = ({}) => {
                             >
                                 <Ionicons name="checkmark-circle" size={20} color="#fff"/>
                                 <Text style={styles.selectedInfoText}>
-                                    Đã chọn {selectedTables.length} bàn •{" "}
-                                    {calculateTotalDepositAmount().toLocaleString()}₫
+                                    Đã chọn {selectedTables.length} bàn
                                 </Text>
                             </LinearGradient>
                         </View>
@@ -513,10 +728,7 @@ const Index: React.FC<any> = ({}) => {
                                     </View>
                                     <View style={styles.bookingButtonContent}>
                                         <Text style={styles.bookingButtonText}>
-                                            Đặt bàn ({selectedTables.length})
-                                        </Text>
-                                        <Text style={styles.bookingButtonSubtext}>
-                                            Tổng cọc: {calculateTotalDepositAmount().toLocaleString()}₫
+                                            Đặt bàn
                                         </Text>
                                     </View>
                                     <Ionicons name="arrow-forward" size={20} color="#fff"/>
@@ -526,7 +738,21 @@ const Index: React.FC<any> = ({}) => {
                     </Pressable>
                 </View>
             )}
-            <BookingModal visible={visible} dataBooking={data} onClose={() => setVisible(false)} clearData={() => setSelectedTables([])}/>
+            <BookingModal 
+                visible={visible} 
+                dataBooking={data} 
+                onClose={() => {
+                    setVisible(false);
+                    setSelectedCombo(null);
+                }} 
+                clearData={() => {
+                    setSelectedTables([]);
+                    setSelectedCombo(null);
+                }}
+                barId={barDetail?.entityAccountId || ""}
+                tableId={selectedTables[0]?.tableId || ""}
+                preselectedCombo={selectedCombo}
+            />
         </View>
     );
 };
@@ -831,16 +1057,6 @@ const styles = StyleSheet.create({
     tableTextBooked: {
         color: "#94a3b8",
     },
-    tableCapacityRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-    },
-    tableCapacity: {
-        fontSize: 12,
-        color: "#64748b",
-        fontWeight: "500",
-    },
     tablePriceSection: {
         paddingTop: 12,
         borderTopWidth: 1,
@@ -925,11 +1141,22 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         letterSpacing: 0.3,
     },
-    bookingButtonSubtext: {
-        color: "rgba(255, 255, 255, 0.9)",
-        fontSize: 14,
-        fontWeight: "600",
-        marginTop: 2,
+    datePickerButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#fff",
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#e5e7eb",
+        marginTop: 12,
+    },
+    datePickerText: {
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 16,
+        color: "#1f2937",
+        fontWeight: "500",
     },
     // Skeleton Styles
     skeletonHeader: {
@@ -978,5 +1205,133 @@ const styles = StyleSheet.create({
         height: 180,
         backgroundColor: "#e2e8f0",
         borderRadius: 16,
+    },
+    loadingComboContainer: {
+        paddingVertical: 60,
+        alignItems: "center",
+    },
+    emptyComboContainer: {
+        paddingVertical: 60,
+        alignItems: "center",
+    },
+    emptyComboText: {
+        fontSize: 15,
+        color: "#94a3b8",
+        marginTop: 12,
+        fontWeight: "500",
+    },
+    comboScrollContainer: {
+        paddingVertical: 8,
+    },
+    comboCard: {
+        width: 200,
+        marginRight: 12,
+        borderRadius: 16,
+        overflow: "hidden",
+        borderWidth: 2,
+        borderColor: "#e5e7eb",
+    },
+    comboCardSelected: {
+        borderColor: "#3b82f6",
+    },
+    comboCardGradient: {
+        flex: 1,
+        padding: 12,
+        minHeight: 240,
+    },
+    comboImage: {
+        width: "100%",
+        height: 120,
+        borderRadius: 12,
+        marginBottom: 12,
+        backgroundColor: "#f3f4f6",
+    },
+    comboCardContent: {
+        flex: 1,
+        position: "relative",
+    },
+    comboCardTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        color: "#0f172a",
+        marginBottom: 4,
+    },
+    comboCardTitleSelected: {
+        color: "#fff",
+    },
+    comboCardDescription: {
+        fontSize: 12,
+        color: "#64748b",
+        marginBottom: 8,
+        minHeight: 32,
+    },
+    comboCardDescriptionSelected: {
+        color: "rgba(255,255,255,0.9)",
+    },
+    comboCardPriceRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 4,
+    },
+    comboCardOriginalPrice: {
+        fontSize: 12,
+        color: "#94a3b8",
+        textDecorationLine: "line-through",
+    },
+    comboCardOriginalPriceSelected: {
+        color: "rgba(255,255,255,0.7)",
+    },
+    comboCardSalePrice: {
+        fontSize: 18,
+        fontWeight: "700",
+        color: "#ef4444",
+    },
+    comboCardSalePriceSelected: {
+        color: "#fff",
+    },
+    comboCardSuitable: {
+        fontSize: 11,
+        color: "#64748b",
+        marginTop: 4,
+    },
+    comboCardSuitableSelected: {
+        color: "rgba(255,255,255,0.8)",
+    },
+    comboCardCheckBadge: {
+        position: "absolute",
+        top: -8,
+        right: -8,
+        backgroundColor: "#10b981",
+        borderRadius: 12,
+        width: 24,
+        height: 24,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 2,
+        borderColor: "#fff",
+    },
+    selectedComboInfo: {
+        marginTop: 16,
+        borderRadius: 16,
+        overflow: "hidden",
+        shadowColor: "#10b981",
+        shadowOpacity: 0.2,
+        shadowOffset: {width: 0, height: 4},
+        shadowRadius: 12,
+        elevation: 6,
+    },
+    selectedComboInfoGradient: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        gap: 10,
+    },
+    selectedComboInfoText: {
+        fontSize: 15,
+        color: "#fff",
+        fontWeight: "700",
     },
 });

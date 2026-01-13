@@ -19,14 +19,39 @@ export default function ConfirmBooking({
             <View style={styles.modal}>
                 <Text style={styles.title}>Xác nhận đặt bàn</Text>
 
+                {data.combo && (
+                    <View style={styles.row}>
+                        <Text style={styles.label}>Combo: </Text>
+                        <Text style={styles.value}>{data.combo.comboName}</Text>
+                    </View>
+                )}
+
+                {data.voucherCode && (
+                    <View style={styles.row}>
+                        <Text style={styles.label}>Voucher: </Text>
+                        <Text style={styles.value}>{data.voucherCode}</Text>
+                    </View>
+                )}
+
+                {data.voucherDiscount > 0 && (
+                    <View style={styles.row}>
+                        <Text style={styles.label}>Giảm giá: </Text>
+                        <Text style={[styles.value, {color: "#10b981"}]}>
+                            -{data.voucherDiscount.toLocaleString()}₫
+                        </Text>
+                    </View>
+                )}
+
                 <View style={styles.row}>
                     <Text style={styles.label}>Bàn: </Text>
-                    <Text style={styles.value}>{data.tables.map((t) => t.tableName).join(", ")}</Text>
+                    <Text style={styles.value}>{data.tables?.map((t) => t.tableName).join(", ") || "N/A"}</Text>
                 </View>
 
                 <View style={styles.row}>
-                    <Text style={styles.label}>Tổng tiền cọc:</Text>
-                    <Text style={styles.value}>{data.totalAmount.toLocaleString()}₫</Text>
+                    <Text style={styles.label}>Tổng tiền:</Text>
+                    <Text style={[styles.value, {fontSize: 16, fontWeight: "700", color: "#ef4444"}]}>
+                        {data.totalAmount.toLocaleString()}₫
+                    </Text>
                 </View>
 
                 <View style={styles.buttonRow}>

@@ -21,6 +21,7 @@ import Dropdown from "@/components/Dropdown";
 import { useAuth } from "@/hooks/useAuth";
 import { ProfileApiService } from "@/services/profileApi";
 import { UpdateProfileRequestData } from "@/types/profileType";
+import { formatAddressForSave, validateAddressFields } from "@/utils/addressFormatter";
 
 export default function CompleteProfileScreen() {
     const router = useRouter();
@@ -40,6 +41,8 @@ export default function CompleteProfileScreen() {
         provinceId: "",
         districtId: "",
         wardId: "",
+        addressDetail: "", // Address detail (số nhà, tên đường, etc.)
+        address: "", // Will store JSON string: {"detail":"13","provinceId":"1","districtId":"21","wardId":"617"}
     });
 
     const [errors, setErrors] = useState({
@@ -153,12 +156,26 @@ export default function CompleteProfileScreen() {
         setIsLoading(true);
 
         try {
+            // Format address as JSON string if all 4 fields are present
+            let addressJsonString: string | undefined = undefined;
+            if (validateAddressFields(form.addressDetail, form.provinceId, form.districtId, form.wardId)) {
+                const formatted = formatAddressForSave(form.addressDetail, form.provinceId, form.districtId, form.wardId);
+                if (formatted) {
+                    addressJsonString = formatted;
+                }
+            }
+
             const req: UpdateProfileRequestData = {
                 userName: form.displayName,
                 bio: form.bio,
                 phone: form.phone,
                 gender: form.gender,
             };
+
+            // Add address if formatted successfully
+            if (addressJsonString) {
+                req.address = addressJsonString;
+            }
 
             if (form.avatar) {
                 req.avatar = {
@@ -343,7 +360,10 @@ export default function CompleteProfileScreen() {
                                         <Ionicons name="home-outline" size={20} color="#64748b" style={styles.inputIcon} />
                                         <TextInput
                                             placeholder="Số nhà, tên đường..."
+                                            placeholderTextColor="#9ca3af"
                                             style={styles.input}
+                                            value={form.addressDetail}
+                                            onChangeText={(v) => updateForm("addressDetail", v)}
                                         />
                                     </View>
                                 </>

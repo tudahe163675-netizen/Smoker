@@ -4,6 +4,7 @@ import { BarItem } from '@/types/barType';
 import { Ionicons } from "@expo/vector-icons";
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { parseAddressFromString, buildAddressFromIds } from '@/utils/addressFormatter';
 import {
   ActivityIndicator,
   Animated,
@@ -18,6 +19,7 @@ import {
   View
 } from "react-native";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import AnimatedHeader from '@/components/ui/AnimatedHeader';
 
@@ -76,6 +78,7 @@ interface BarCardProps {
 
 const BarCard: React.FC<BarCardProps> = React.memo(({ item, index, onPress }) => {
   const scale = useRef(new Animated.Value(0)).current;
+  const [displayAddress, setDisplayAddress] = useState<string>('Chưa cập nhật địa chỉ');
 
   useEffect(() => {
     Animated.spring(scale, {
@@ -87,10 +90,80 @@ const BarCard: React.FC<BarCardProps> = React.memo(({ item, index, onPress }) =>
     }).start();
   }, [index]);
 
+  // Resolve address
+  useEffect(() => {
+    const resolveAddress = async () => {
+      // Priority 1: addressText (already formatted)
+      if (item.addressText && typeof item.addressText === 'string' && item.addressText.trim()) {
+        setDisplayAddress(item.addressText.trim());
+        return;
+      }
+
+      // Priority 2: address field (if it's a formatted string)
+      if (item.address && typeof item.address === 'string') {
+        const addressStr = item.address.trim();
+        // Only use if it's not a JSON string and has more than just a number
+        if (addressStr && !addressStr.startsWith('{') && (addressStr.includes(',') || addressStr.length > 10)) {
+          setDisplayAddress(addressStr);
+          return;
+        }
+
+        // If it's a JSON string with IDs, parse and build full address
+        if (addressStr.startsWith('{') && addressStr.endsWith('}')) {
+          try {
+            const parsed = parseAddressFromString(addressStr);
+            if (parsed) {
+              const fullAddress = await buildAddressFromIds(parsed);
+              if (fullAddress) {
+                setDisplayAddress(fullAddress);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('[BarCard] Error parsing address:', e);
+          }
+        }
+      }
+
+      // Priority 3: addressData or addressObject
+      const addressData = item.addressData || item.addressObject;
+      if (addressData) {
+        // If it has IDs but no names, fetch names
+        if (addressData.provinceId && addressData.districtId && addressData.wardId && addressData.detail) {
+          const fullAddress = await buildAddressFromIds({
+            detail: addressData.detail || addressData.addressDetail || '',
+            provinceId: addressData.provinceId || '',
+            districtId: addressData.districtId || '',
+            wardId: addressData.wardId || ''
+          });
+          if (fullAddress) {
+            setDisplayAddress(fullAddress);
+            return;
+          }
+        }
+        
+        // Otherwise, try to use fullAddress if available
+        if (addressData.fullAddress) {
+          setDisplayAddress(addressData.fullAddress);
+          return;
+        }
+      }
+
+      // Fallback: use raw address if available
+      if (item.address && typeof item.address === 'string' && !item.address.startsWith('{')) {
+        setDisplayAddress(item.address);
+        return;
+      }
+
+      setDisplayAddress('Chưa cập nhật địa chỉ');
+    };
+
+    resolveAddress();
+  }, [item.address, item.addressText, item.addressData, item.addressObject]);
+
   const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
   const hasRating = item.averageRating !== null && item.reviewCount > 0;
-  const displayAddress = item.address || item.addressData?.fullAddress || 'Chưa cập nhật địa chỉ';
   const hasPhone = !!item.phoneNumber;
 
   return (
@@ -241,8 +314,8 @@ export default function FeedScreen() {
 
   const handleBarPress = useCallback((bar: BarItem) => {
     router.push({
-      pathname: "/barDetail",
-      params: { id: bar.barPageId }
+      pathname: "/user",
+      params: { id: bar.entityAccountId }
     });
   }, []);
 
@@ -313,7 +386,7 @@ export default function FeedScreen() {
         <Animated.FlatList
           data={bars}
           renderItem={renderBarItem}
-          keyExtractor={(item) => item.barPageId}
+          keyExtractor={(item) => item.entityAccountId || item.barPageId}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(

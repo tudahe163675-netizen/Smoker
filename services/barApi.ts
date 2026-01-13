@@ -8,7 +8,13 @@ import {
     CreateBookingRequest,
     CreateBookingResponse,
     PaymentResponse,
-    TableListResponse
+    TableListResponse,
+    ComboListResponse,
+    VoucherValidationResponse,
+    CreateBookingWithComboRequest,
+    QRCodeResponse,
+    ScanQRRequest,
+    ScanQRResponse,
 } from "@/types/tableType";
 import { API_CONFIG } from "./apiConfig";
 
@@ -112,6 +118,20 @@ export class BarApiService {
         );
     }
 
+    // Create full payment for combo booking (giống web)
+    async createTableFullPayment(
+        bookingId: string,
+        paymentData: { amount: number; discountPercentages?: number }
+    ): Promise<ApiResponse<PaymentResponse>> {
+        return this.makeRequest<PaymentResponse>(
+            `/bookingtable/${bookingId}/create-full-payment`,
+            {
+                method: "POST",
+                body: JSON.stringify(paymentData),
+            }
+        );
+    }
+
     async getPaymentLink(
         bookedScheduleId: string
     ): Promise<ApiResponse<BookingListResponse>> {
@@ -133,5 +153,84 @@ export class BarApiService {
         return this.makeRequest<MyBookingListResponse>(
             `/booking/booker/${entityAccountId}`
         );
+    }
+
+    // Combo APIs
+    // Use same endpoint as web: /combo/bar/${barPageId}
+    async getBarCombos(barPageId: string): Promise<ApiResponse<ComboListResponse>> {
+        return this.makeRequest<ComboListResponse>(
+            `/combo/bar/${barPageId}`
+        );
+    }
+
+    // Voucher APIs
+    async getAvailableVouchers(minComboValue: number = 0): Promise<ApiResponse<any>> {
+        return this.makeRequest<any>(
+            `/bookingtable/available-vouchers?minComboValue=${minComboValue}`
+        );
+    }
+
+    async validateVoucher(voucherCode: string, totalAmount: number): Promise<ApiResponse<VoucherValidationResponse>> {
+        return this.makeRequest<VoucherValidationResponse>(
+            `/bookingtable/validate-voucher`,
+            {
+                method: "POST",
+                body: JSON.stringify({ voucherCode, totalAmount }),
+            }
+        );
+    }
+
+    // Create Booking with Combo
+    async createBookingWithCombo(
+        bookingData: CreateBookingWithComboRequest
+    ): Promise<ApiResponse<CreateBookingResponse>> {
+        return this.makeRequest<CreateBookingResponse>(
+            `/bookingtable/with-combo`,
+            {
+                method: "POST",
+                body: JSON.stringify(bookingData),
+            }
+        );
+    }
+
+    // QR Code APIs
+    async getBookingQRCode(bookingId: string): Promise<ApiResponse<QRCodeResponse>> {
+        return this.makeRequest<QRCodeResponse>(
+            `/bookingtable/${bookingId}/qr-code`
+        );
+    }
+
+    async scanQRCode(qrData: string, barId: string): Promise<ApiResponse<ScanQRResponse>> {
+        return this.makeRequest<ScanQRResponse>(
+            `/bookingtable/scan-qr`,
+            {
+                method: "POST",
+                body: JSON.stringify({ qrData, barId }),
+            }
+        );
+    }
+
+    // Booking Status Update APIs
+    async confirmArrival(bookingId: string): Promise<ApiResponse<CreateBookingResponse>> {
+        return this.makeRequest<CreateBookingResponse>(
+            `/bookingtable/${bookingId}/confirm-arrival`,
+            {
+                method: "PATCH",
+            }
+        );
+    }
+
+    async endBooking(bookingId: string): Promise<ApiResponse<CreateBookingResponse>> {
+        return this.makeRequest<CreateBookingResponse>(
+            `/bookingtable/${bookingId}/end`,
+            {
+                method: "PATCH",
+            }
+        );
+    }
+
+    // Event APIs
+    async getBarEvents(barPageId: string): Promise<ApiResponse<any>> {
+        return this.makeRequest<any>(`/events/bar/${barPageId}`);
     }
 }

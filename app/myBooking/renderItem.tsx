@@ -10,6 +10,7 @@ import {
     Phone,
     Store,
 } from 'lucide-react-native';
+import {Ionicons} from '@expo/vector-icons';
 import React, {useState} from 'react';
 import {
     Alert,
@@ -61,12 +62,22 @@ export default function RenderItem({item, index, setDataBooking, showDetail, onC
             label: "Đã huỷ",
             color: "#ef4444",
         },
+        arrived: {
+            label: "Đã đến quán",
+            color: "#3b82f6",
+        },
+        ended: {
+            label: "Đã kết thúc",
+            color: "#6b7280",
+        },
     };
     const statusKey = item.scheduleStatus.toLowerCase();
     const status = statusConfig[statusKey] ?? {
         label: "Không xác định",
         color: "#6b7280",
     };
+
+    const hasQRCode = item.scheduleStatus === 'Confirmed';
 
     return (
         <Animated.View entering={FadeInDown.delay(index * 100)}>
@@ -87,6 +98,7 @@ export default function RenderItem({item, index, setDataBooking, showDetail, onC
                         </View>
                     </View>
 
+                    <View style={styles.statusContainer}>
                     <View
                         style={[
                             styles.statusBadge,
@@ -96,6 +108,13 @@ export default function RenderItem({item, index, setDataBooking, showDetail, onC
                         ]}
                     >
                         <Text style={styles.statusText}>{status.label}</Text>
+                        </View>
+                        {hasQRCode && (
+                            <View style={styles.qrBadge}>
+                                <Ionicons name="qr-code-outline" size={12} color="#3b82f6" />
+                                <Text style={styles.qrBadgeText}>QR</Text>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -254,6 +273,11 @@ const styles = StyleSheet.create({
         color: '#475569',
         fontWeight: '500',
     },
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
     statusBadge: {
         paddingHorizontal: 12,
         paddingVertical: 6,
@@ -265,6 +289,22 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    qrBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        backgroundColor: '#eff6ff',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#bfdbfe',
+    },
+    qrBadgeText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: '#3b82f6',
     },
     divider: {
         height: 1,

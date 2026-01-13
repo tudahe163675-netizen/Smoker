@@ -37,9 +37,12 @@ export const useUserProfile = (userId: string) => {
                     isFollowing: response.data?.isFollowing ?? false
                 });
 
-               const userReview= await profileApi.getUserReviewsBusiness(userResponse.data.targetId!)
+               // Only fetch reviews if targetId exists
+               if (userResponse.data.targetId) {
+                   const userReview = await profileApi.getUserReviewsBusiness(userResponse.data.targetId);
                 if (userReview.data) {
                     setUserReview(userReview.data);
+                   }
                 }
             } else {
                 setError('Không tìm thấy người dùng');
@@ -63,14 +66,17 @@ export const useUserProfile = (userId: string) => {
     }, [userId]);
 
     const followUser = async (): Promise<void> => {
-        if (!user) return;
+        if (!user || !accountId) {
+            console.warn('Cannot follow: user or accountId is missing');
+            return;
+        }
         try {
-            const response = await feedApi.followUser(accountId, user.entityAccountId, user.type);
-            if (!response.success) {
+            const response = await feedApi.followUser(accountId, user.entityAccountId, user.type || 'USER');
+            if (response.success) {
                 setUser(prev => prev ? {
                     ...prev,
-                    isFollowing: !prev.isFollowing,
-                    followers: prev.isFollowing ? prev.followers - 1 : prev.followers + 1
+                    isFollowing: true,
+                    followers: prev.followers + 1
                 } : null);
             }
         } catch (err) {
@@ -78,24 +84,28 @@ export const useUserProfile = (userId: string) => {
         }
     };
     const unFollowUser = async (): Promise<void> => {
-        if (!user) return;
+        if (!user || !accountId) {
+            console.warn('Cannot unfollow: user or accountId is missing');
+            return;
+        }
         try {
             const response = await feedApi.unFollowUser(accountId, user.entityAccountId);
 
-            if (!response.success) {
+            if (response.success) {
                 setUser(prev => prev ? {
                     ...prev,
-                    isFollowing: !prev.isFollowing,
-                    followers: prev.isFollowing ? prev.followers - 1 : prev.followers + 1
+                    isFollowing: false,
+                    followers: prev.followers - 1
                 } : null);
             }
         } catch (err) {
-            console.error('Error following user:', err);
+            console.error('Error unfollowing user:', err);
         }
     };
 
     const refreshComments = async () => {
-        const userReview= await profileApi.getUserReviewsBusiness(user?.targetId!)
+        if (!user?.targetId) return;
+        const userReview = await profileApi.getUserReviewsBusiness(user.targetId);
         if (userReview.data) {
             setUserReview(userReview.data);
         }

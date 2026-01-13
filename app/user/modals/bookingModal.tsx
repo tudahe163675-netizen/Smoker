@@ -67,8 +67,14 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
     const barApi = new BarApiService(authState.token!)
 
     const loadData = async () => {
+        if (!user?.entityAccountId) {
+            console.warn("user.entityAccountId is undefined");
+            return;
+        }
+        
+        try {
         const response = await profileApi.getListBooked(user.entityAccountId);
-        const bookings = response.data;
+            const bookings = response?.data || [];
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -103,6 +109,9 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
         });
 
         setSlots(slotsWithBookings);
+        } catch (error) {
+            console.error("Error loading booking data:", error);
+        }
     }
     useEffect(() => {
         loadData()
