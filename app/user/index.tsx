@@ -185,6 +185,13 @@ export default function Index() {
         }
     }, [user]);
     
+    // Đồng bộ followerCount ban đầu với danh sách followers
+    useEffect(() => {
+        if (Array.isArray(followers)) {
+            setFollowerCount(followers.length || 0);
+        }
+    }, [followers]);
+    
     // Check follow status for bar profile if not already set
     useEffect(() => {
         const checkBarFollowStatus = async () => {
@@ -305,6 +312,184 @@ export default function Index() {
         });
     };
 
+    // Resolve address for DJ/Dancer info tab
+    const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+    
+    useEffect(() => {
+        if (activeTab === 'info' && (user?.role === 'DJ' || user?.role === 'Dancer')) {
+            const resolveAddress = async () => {
+                // Priority 1: addressText
+                if (user?.addressText && typeof user.addressText === 'string' && user.addressText.trim()) {
+                    setResolvedAddress(user.addressText.trim());
+                    return;
+                }
+                // Priority 2: address field
+                if (user?.address && typeof user.address === 'string') {
+                    const addressStr = user.address.trim();
+                    if (addressStr && !addressStr.startsWith('{') && (addressStr.includes(',') || addressStr.length > 10)) {
+                        setResolvedAddress(addressStr);
+                        return;
+                    }
+                    // If it's a JSON string with IDs, parse and build full address
+                    if (addressStr.startsWith('{') && addressStr.endsWith('}')) {
+                        try {
+                            const parsed = parseAddressFromString(addressStr);
+                            if (parsed) {
+                                const fullAddress = await buildAddressFromIds(parsed);
+                                if (fullAddress) {
+                                    setResolvedAddress(fullAddress);
+                                    return;
+                                }
+                            }
+                        } catch (e) {
+                            console.error('[UserProfile] Error parsing address:', e);
+                        }
+                    }
+                }
+                setResolvedAddress(null);
+            };
+            resolveAddress();
+        }
+    }, [activeTab, user?.addressText, user?.address, user?.role]);
+
+    // Helper to display gender in Vietnamese
+    const displayGender = (gender: string | null | undefined): string => {
+        if (!gender) return "Chưa cập nhật";
+        const genderLower = gender.toLowerCase();
+        if (genderLower === 'male') return 'Nam';
+        if (genderLower === 'female') return 'Nữ';
+        if (genderLower === 'other') return 'Khác';
+        return gender;
+    };
+
+    // Render DJ/Dancer Info Tab Content (only contact info, no Events/Combos)
+    const renderDJDancerInfoTab = () => {
+        const copyAddress = async () => {
+            const address = resolvedAddress || user?.addressText || user?.address;
+            if (address) {
+                try {
+                    await Clipboard.setStringAsync(address);
+                    Alert.alert('Thành công', 'Đã sao chép địa chỉ');
+                } catch (error) {
+                    console.error('Failed to copy address:', error);
+                    Alert.alert('Lỗi', 'Không thể sao chép địa chỉ');
+                }
+            }
+        };
+
+        const callPhone = () => {
+            if (user?.phoneNumber || user?.phone) {
+                Linking.openURL(`tel:${user?.phoneNumber || user?.phone}`);
+            }
+        };
+
+        const sendEmail = () => {
+            if (user?.email) {
+                Linking.openURL(`mailto:${user?.email}`);
+            }
+        };
+
+        const openMap = () => {
+            const address = resolvedAddress || user?.addressText || user?.address;
+            if (address) {
+                Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(address)}`);
+            }
+        };
+
+        return (
+            <View style={{backgroundColor: '#fff', marginTop: 12, paddingHorizontal: 16, paddingVertical: 8}}>
+                {(user?.phoneNumber || user?.phone) && (
+                    <TouchableOpacity style={styles.contactItemRow} onPress={callPhone}>
+                        <View style={styles.contactIcon}>
+                            <Ionicons name="call" size={18} color="#10b981" />
+                        </View>
+                        <View style={styles.contactContent}>
+                            <Text style={styles.contactLabel}>Số điện thoại</Text>
+                            <Text style={styles.contactValue} numberOfLines={1}>{user?.phoneNumber || user?.phone}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                )}
+
+                {user?.email && (
+                    <TouchableOpacity style={styles.contactItemRow} onPress={sendEmail}>
+                        <View style={styles.contactIcon}>
+                            <Ionicons name="mail" size={18} color="#f59e0b" />
+                        </View>
+                        <View style={styles.contactContent}>
+                            <Text style={styles.contactLabel}>Email</Text>
+                            <Text style={styles.contactValue} numberOfLines={1}>{user?.email}</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                    </TouchableOpacity>
+                )}
+
+                {resolvedAddress && (
+                    <View style={styles.contactItemRow}>
+                        <View style={styles.contactIcon}>
+                            <Ionicons name="location" size={18} color="#3b82f6" />
+                        </View>
+                        <View style={styles.contactContent}>
+                            <Text style={styles.contactLabel}>Địa chỉ</Text>
+                            <Text style={styles.contactValue} numberOfLines={2}>{resolvedAddress}</Text>
+                        </View>
+                        <View style={styles.contactActions}>
+                            <TouchableOpacity 
+                                style={styles.copyButton}
+                                onPress={copyAddress}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="copy-outline" size={16} color="#3b82f6" />
+                                <Text style={styles.copyButtonText}>Sao chép</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={styles.mapButton}
+                                onPress={openMap}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+
+                {user?.gender && (
+                    <View style={styles.contactItemRow}>
+                        <View style={styles.contactIcon}>
+                            <Ionicons name="person" size={18} color="#8b5cf6" />
+                        </View>
+                        <View style={styles.contactContent}>
+                            <Text style={styles.contactLabel}>Giới tính</Text>
+                            <Text style={styles.contactValue}>{displayGender(user?.gender)}</Text>
+                        </View>
+                    </View>
+                )}
+            </View>
+        );
+    };
+
+    // Render tab content for DJ/Dancer profile
+    const renderUserTabContent = () => {
+        if (activeTab === 'info' && (user?.role === 'DJ' || user?.role === 'Dancer')) {
+            // Render only contact info for DJ/Dancer (no Events/Combos)
+            return renderDJDancerInfoTab();
+        }
+        
+        if (activeTab === 'reviews' && showReview) {
+            return (
+                <Review
+                    authState={authState}
+                    user={user}
+                    userReview={userReview}
+                    refreshComments={refreshComments}
+                />
+            );
+        }
+        
+        // Default: posts tab - return null, posts are rendered in FlatList
+        return null;
+    };
+
     const renderHeader = () => (
         <View style={styles.headerContainer}>
             <View style={styles.coverContainer}>
@@ -334,6 +519,127 @@ export default function Index() {
                         <Text style={styles.userBio}>{user.bio}</Text>
                     )}
                 </View>
+
+                {/* Price Section - Only for DJ/Dancer */}
+                {(user?.role === 'DJ' || user?.role === 'Dancer') && (user?.pricePerHours || user?.pricePerSession || user?.PricePerHours || user?.PricePerSession) && (
+                    <View style={{
+                        backgroundColor: '#eff6ff',
+                        borderRadius: 12,
+                        padding: 24,
+                        marginTop: 12,
+                        marginBottom: 12,
+                        borderWidth: 0.5,
+                        borderColor: '#bfdbfe',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 8,
+                        elevation: 2
+                    }}>
+                        <Text style={{fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 16}}>
+                            Bảng giá dịch vụ
+                        </Text>
+                        <View style={{flexDirection: 'row', gap: 16}}>
+                            {(user?.pricePerHours || user?.PricePerHours) && (
+                                <View style={{
+                                    flex: 1,
+                                    backgroundColor: '#f3f4f6',
+                                    borderRadius: 8,
+                                    padding: 16,
+                                    borderWidth: 1,
+                                    borderColor: '#e5e7eb'
+                                }}>
+                                    <Text style={{fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 8}}>
+                                        Giá tiêu chuẩn
+                                    </Text>
+                                    <Text style={{fontSize: 24, fontWeight: '700', color: '#111827'}}>
+                                        {Number(user?.pricePerHours || user?.PricePerHours || 0).toLocaleString('vi-VN')} đ / slot
+                                    </Text>
+                                    <Text style={{fontSize: 12, color: '#6b7280', marginTop: 8}}>
+                                        Dành cho đặt lẻ
+                                    </Text>
+                                </View>
+                            )}
+                            {(user?.pricePerSession || user?.PricePerSession) && (
+                                <View style={{
+                                    flex: 1,
+                                    backgroundColor: '#ffffff',
+                                    borderRadius: 8,
+                                    padding: 16,
+                                    borderWidth: 2,
+                                    borderColor: '#2563eb',
+                                    shadowColor: '#000',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.15,
+                                    shadowRadius: 12,
+                                    elevation: 8,
+                                    position: 'relative'
+                                }}>
+                                    {/* Badge */}
+                                    <View style={{
+                                        position: 'absolute',
+                                        top: -8,
+                                        right: -8,
+                                        backgroundColor: '#f97316',
+                                        borderRadius: 9999,
+                                        paddingHorizontal: 8,
+                                        paddingVertical: 4,
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 2 },
+                                        shadowOpacity: 0.25,
+                                        shadowRadius: 4,
+                                        elevation: 4
+                                    }}>
+                                        <Text style={{
+                                            fontSize: 10,
+                                            fontWeight: '700',
+                                            color: '#ffffff'
+                                        }}>
+                                            {((user?.pricePerHours || user?.PricePerHours) && 
+                                             Number(user?.pricePerHours || user?.PricePerHours || 0) > Number(user?.pricePerSession || user?.PricePerSession || 0)) ? (
+                                                `-${Math.round(((Number(user?.pricePerHours || user?.PricePerHours || 0) - Number(user?.pricePerSession || user?.PricePerSession || 0)) / Number(user?.pricePerHours || user?.PricePerHours || 0)) * 100)}%`
+                                            ) : (
+                                                "Khuyên dùng"
+                                            )}
+                                        </Text>
+                                    </View>
+                                    <Text style={{fontSize: 12, fontWeight: '600', color: '#2563eb', marginBottom: 8, paddingRight: 48}}>
+                                        Giá ưu đãi khi đặt nhiều slot
+                                    </Text>
+                                    <View style={{marginBottom: 8}}>
+                                        {((user?.pricePerHours || user?.PricePerHours) && 
+                                         Number(user?.pricePerHours || user?.PricePerHours || 0) > Number(user?.pricePerSession || user?.PricePerSession || 0)) ? (
+                                            <Text style={{
+                                                fontSize: 18,
+                                                color: '#9ca3af',
+                                                textDecorationLine: 'line-through',
+                                                marginRight: 8
+                                            }}>
+                                                {Number(user?.pricePerHours || user?.PricePerHours || 0).toLocaleString('vi-VN')} đ
+                                            </Text>
+                                        ) : null}
+                                        <Text style={{fontSize: 24, fontWeight: '700', color: '#ea580c'}}>
+                                            {Number(user?.pricePerSession || user?.PricePerSession || 0).toLocaleString('vi-VN')} đ / slot
+                                        </Text>
+                                    </View>
+                                    <View style={{marginTop: 8}}>
+                                        <Text style={{fontSize: 12, fontWeight: '600', color: '#374151', marginBottom: 4}}>
+                                            Điều kiện áp dụng:
+                                        </Text>
+                                        <View style={{flexDirection: 'row', alignItems: 'flex-start', marginBottom: 4}}>
+                                            <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{marginRight: 4, marginTop: 2}} />
+                                            <Text style={{fontSize: 12, color: '#6b7280', flex: 1}}>4 slot liền nhau</Text>
+                                        </View>
+                                        <View style={{flexDirection: 'row', alignItems: 'flex-start'}}>
+                                            <Ionicons name="checkmark-circle" size={12} color="#16a34a" style={{marginRight: 4, marginTop: 2}} />
+                                            <Text style={{fontSize: 12, color: '#6b7280', flex: 1}}>Hoặc 6 slot bất kỳ</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+                )}
 
                 {/*social media link*/}
                 {(user?.website || user?.tiktok || user?.facebook || user?.instagram) && (
@@ -386,25 +692,28 @@ export default function Index() {
                     <TouchableOpacity
                         style={styles.statItem}
                         onPress={() => {
-                            if (user?.entityAccountId) {
+                            // Ưu tiên dùng entityAccountId, fallback về id trên route
+                            const targetUserId = user?.entityAccountId || id;
+                            if (targetUserId) {
                                 router.push({
                                     pathname: '/follow',
-                                    params: {type: 'followers', userId: user.entityAccountId},
+                                    params: { type: 'followers', userId: String(targetUserId) },
                                 });
                             }
                         }}
                         activeOpacity={0.7}
                     >
-                        <Text style={styles.statNumber}>{formatNumber(followers.length || 0)}</Text>
+                        <Text style={styles.statNumber}>{formatNumber(followerCount)}</Text>
                         <Text style={styles.statLabel}>Người theo dõi</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.statItem}
                         onPress={() => {
-                            if (user?.entityAccountId) {
+                            const targetUserId = user?.entityAccountId || id;
+                            if (targetUserId) {
                                 router.push({
                                     pathname: '/follow',
-                                    params: {type: 'following', userId: user.entityAccountId},
+                                    params: { type: 'following', userId: String(targetUserId) },
                                 });
                             }
                         }}
@@ -448,22 +757,49 @@ export default function Index() {
                 )}
 
                 <View style={styles.postsHeader}>
+                    {/* Tab Info - Only for DJ/Dancer */}
+                    {(user?.role === 'DJ' || user?.role === 'Dancer') && (
+                        <TouchableOpacity
+                            style={[
+                                styles.postsHeaderItem,
+                                activeTab === 'info' && styles.activeTab,
+                            ]}
+                            onPress={() => setActiveTab('info')}
+                        >
+                            <Ionicons
+                                name="information-circle-outline"
+                                size={20}
+                                color={activeTab === 'info' ? '#2563eb' : '#111827'}
+                            />
+                            <Text
+                                style={[
+                                    styles.postsHeaderText,
+                                    activeTab === 'info' && styles.activeText,
+                                ]}
+                            >
+                                Thông tin
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+
                     <TouchableOpacity
                         style={[
                             styles.postsHeaderItem,
                             (activeTab === 'posts' && showReview) && styles.activeTabP,
+                            activeTab === 'posts' && styles.activeTab,
                         ]}
                         onPress={() => setActiveTab('posts')}
                     >
                         <Ionicons
                             name="grid-outline"
                             size={20}
-                            color='#000000'
+                            color={activeTab === 'posts' ? '#2563eb' : '#000000'}
                         />
                         <Text
                             style={[
                                 styles.postsHeaderText,
                                 (activeTab === 'posts' && showReview) && styles.activeTextP,
+                                activeTab === 'posts' && styles.activeText,
                             ]}
                         >
                             Bài viết
@@ -496,13 +832,6 @@ export default function Index() {
 
                 </View>
             </View>
-            {(activeTab === 'reviews' && showReview) && (
-                <Review
-                    authState={authState}
-                    user={user}
-                    userReview={userReview}
-                    refreshComments={refreshComments}/>
-            )}
         </View>
     );
 
@@ -764,8 +1093,10 @@ export default function Index() {
             background: user?.background || user?.coverImage || undefined,
             coverImage: user?.background || user?.coverImage || undefined,
             address: user?.address || undefined,
-            phoneNumber: user?.phoneNumber || undefined,
+            addressText: user?.addressText || user?.address || undefined,
+            phoneNumber: user?.phoneNumber || user?.phone || undefined,
             email: user?.email || undefined,
+            gender: user?.gender || undefined,
             description: user?.bio || user?.description || undefined,
             entityAccountId: user?.entityAccountId || id,
             barPageId: barPageId || undefined,
@@ -903,6 +1234,16 @@ export default function Index() {
                     </TouchableOpacity>
                 </Animated.View>
 
+                {/* Render info tab content for DJ/Dancer */}
+                {activeTab === 'info' && (user?.role === 'DJ' || user?.role === 'Dancer') ? (
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{paddingBottom: 20}}
+                    >
+                        {renderHeader()}
+                        {renderUserTabContent()}
+                    </ScrollView>
+                ) : (
                 <AnimatedFlatList
                     data={activeTab === "posts" ? posts : userReview.reviews}
                     renderItem={({item}) => {
@@ -940,6 +1281,7 @@ export default function Index() {
                             </View> : <></>
                     }
                 />
+                )}
                 <BookingModal visible={visible} onClose={() => setVisible(false)} user={user}/>
             </View>
         </KeyboardAvoidingView>
@@ -1234,6 +1576,60 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: '#e5e7eb',
+    },
+    // Contact info styles for DJ/Dancer info tab
+    contactItemRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 12,
+        gap: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "#e5e7eb",
+    },
+    contactIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: "#f8fafc",
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    contactContent: {
+        flex: 1,
+    },
+    contactLabel: {
+        fontSize: 12,
+        color: "#64748b",
+        marginBottom: 2,
+    },
+    contactValue: {
+        fontSize: 14,
+        color: "#0f172a",
+        fontWeight: "600",
+    },
+    contactActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    copyButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        backgroundColor: "#eff6ff",
+        borderWidth: 1,
+        borderColor: "#bfdbfe",
+    },
+    copyButtonText: {
+        fontSize: 12,
+        color: "#3b82f6",
+        fontWeight: "500",
+    },
+    mapButton: {
+        padding: 4,
     },
 });
 

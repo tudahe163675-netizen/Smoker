@@ -22,6 +22,7 @@ interface ProfileHeaderProps {
   onTabChange: (tab: TabType) => void;
   onFollowersPress: () => void;
   onFollowingPress: () => void;
+  onEditPress?: () => void;
 }
 
 export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
@@ -35,7 +36,24 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   onTabChange,
   onFollowersPress,
   onFollowingPress,
+  onEditPress,
 }) => {
+  const isPerformer =
+    (profile?.role || '').toString().toUpperCase() === 'DJ' ||
+    (profile?.role || '').toString().toUpperCase() === 'DANCER' ||
+    (profile?.type || '').toString().toUpperCase() === 'DJ' ||
+    (profile?.type || '').toString().toUpperCase() === 'DANCER';
+
+  const parsePrice = (v: any) => {
+    if (v === null || v === undefined) return 0;
+    const cleaned = String(v).replace(/[^0-9.-]/g, '');
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const pricePerHours = parsePrice(profile?.pricePerHours ?? profile?.PricePerHours);
+  const pricePerSession = parsePrice(profile?.pricePerSession ?? profile?.PricePerSession);
+
   return (
     <>
       {/* Cover Image */}
@@ -78,9 +96,38 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
 
       {/* Name & Bio */}
       <View style={styles.nameSection}>
-        <Text style={styles.name}>{profile?.userName || 'Người dùng'}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{profile?.userName || 'Người dùng'}</Text>
+          {!!onEditPress && (
+            <TouchableOpacity style={styles.editButton} onPress={onEditPress} activeOpacity={0.8}>
+              <Ionicons name="create-outline" size={16} color="#111827" />
+              <Text style={styles.editButtonText}>Chỉnh sửa</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.bio}>{profile?.bio || 'Chưa có tiểu sử'}</Text>
       </View>
+
+      {/* Pricing (DJ/Dancer) */}
+      {isPerformer && (pricePerHours > 0 || pricePerSession > 0) && (
+        <View style={styles.priceSection}>
+          <Text style={styles.priceTitle}>Bảng giá dịch vụ</Text>
+          <View style={styles.priceRow}>
+            <View style={styles.priceCard}>
+              <Text style={styles.priceLabel}>Giá tiêu chuẩn</Text>
+              <Text style={styles.priceValue}>{pricePerHours.toLocaleString('vi-VN')} đ</Text>
+              <Text style={styles.priceUnit}>/ slot</Text>
+            </View>
+            <View style={[styles.priceCard, styles.priceCardPromo]}>
+              <Text style={[styles.priceLabel, styles.priceLabelPromo]}>Giá ưu đãi khi đặt nhiều slot</Text>
+              <Text style={[styles.priceValue, styles.priceValuePromo]}>
+                {pricePerSession.toLocaleString('vi-VN')} đ
+              </Text>
+              <Text style={[styles.priceUnit, styles.priceUnitPromo]}>/ slot</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Stats */}
       <View style={styles.statsContainer}>
@@ -220,6 +267,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  priceSection: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  priceTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  priceCard: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  priceCardPromo: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fed7aa',
+  },
+  priceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 6,
+  },
+  priceLabelPromo: {
+    color: '#9a3412',
+  },
+  priceValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  priceValuePromo: {
+    color: '#ea580c',
+  },
+  priceUnit: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  priceUnitPromo: {
+    color: '#9a3412',
+  },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -231,6 +336,22 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
+  },
+  editButtonText: {
+    color: '#111827',
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
   },
   statsContainer: {
     flexDirection: 'row',

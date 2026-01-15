@@ -233,4 +233,41 @@ export class BarApiService {
     async getBarEvents(barPageId: string): Promise<ApiResponse<any>> {
         return this.makeRequest<any>(`/events/bar/${barPageId}`);
     }
+
+    // Update Bar Page by EntityAccountId
+    async updateBarPage(
+        entityAccountId: string,
+        data: {
+            BarName?: string;
+            userName?: string;
+            phoneNumber?: string;
+            phone?: string;
+            address?: string;  // JSON string format
+        }
+    ): Promise<ApiResponse<any>> {
+        const payload: any = { ...data };
+        
+        // Map userName to BarName if needed
+        if (payload.userName && !payload.BarName) {
+            payload.BarName = payload.userName;
+        }
+        
+        // Map phone to phoneNumber if needed
+        if (payload.phone && !payload.phoneNumber) {
+            payload.phoneNumber = payload.phone;
+            delete payload.phone; // Remove phone field to avoid confusion
+        }
+
+        // Remove empty fields
+        Object.keys(payload).forEach((key) => {
+            if (payload[key] === '' || payload[key] === null || payload[key] === undefined) {
+                delete payload[key];
+            }
+        });
+
+        return this.makeRequest<any>(`/bar/${entityAccountId}`, {
+            method: "PUT",
+            body: JSON.stringify(payload),
+        });
+    }
 }

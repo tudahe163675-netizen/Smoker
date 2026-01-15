@@ -192,22 +192,39 @@ export default function BookingModal({
 
         setSubmitting(true);
         try {
-            // Prepare booking request
+            // Prepare booking request: align với web
             const bookingDateStr = bookingDate || new Date().toISOString().split("T")[0];
-            const startTime = `${bookingDateStr}T18:00:00.000Z`;
-            const endTime = `${bookingDateStr}T23:59:59.999Z`;
+
+            const now = new Date();
+            const selectedDateObj = new Date(bookingDateStr);
+            const isToday = selectedDateObj.toDateString() === now.toDateString();
+
+            let startTime: string;
+            let endTime: string;
+            if (isToday) {
+                startTime = now.toISOString();
+                const endOfDay = new Date(selectedDateObj);
+                endOfDay.setHours(23, 59, 59, 999);
+                endTime = endOfDay.toISOString();
+            } else {
+                const startOfDay = new Date(selectedDateObj);
+                startOfDay.setHours(0, 0, 0, 0);
+                startTime = startOfDay.toISOString();
+                const endOfDay = new Date(selectedDateObj);
+                endOfDay.setHours(23, 59, 59, 999);
+                endTime = endOfDay.toISOString();
+            }
 
             const req: any = {
                 receiverId: dataBooking?.receiverId || barId,
                 comboId: selectedCombo.ComboId || selectedCombo.comboId,
                 tableId: tableId || dataBooking?.tables?.[0]?.id,
                 bookingDate: bookingDateStr,
-                startTime: startTime,
-                endTime: endTime,
-                customerName: nameTrimmed,
-                phone: normalizedPhone,
-                note: form.note.trim() || "",
-                totalAmount: amounts?.finalPaymentAmount || 0,
+                startTime,
+                endTime,
+                note: `${nameTrimmed} - ${normalizedPhone}${
+                    form.note.trim() ? ` - ${form.note.trim()}` : ""
+                }`,
             };
 
             if (selectedVoucher && selectedVoucher.VoucherId) {

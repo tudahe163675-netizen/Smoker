@@ -5,6 +5,7 @@ import { UploadFile, UserProfileData } from '@/types/profileType';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { useAuth } from './useAuth';
+import { Role } from "@/constants/authData";
 
 type FieldValue = string | UploadFile;
 
@@ -40,24 +41,35 @@ export const useProfile = () => {
       if (followersResponse?.data) {
         setFollowers(followersResponse.data);
       }
-      const response = await profileApi.getUserProfile(userId);
+      // Use /profile/{id} to get full profile (includes DJ/Dancer pricing)
+      const response = await feedApi.getViewInformation(userId);
 
       if (response.data) {
         const data = response.data;
 
         const mappedProfile: UserProfileData = {
-          id: data.entityAccountId || data.entityId,
-          email: data.contact?.email || '',
-          userName: data.name || '',
-          role: data.role as Role,
-          avatar: data.avatar || '',
-          background: data.background || '',
+          id: (data as any).entityAccountId || (data as any).entityId || (data as any).id || userId,
+          entityAccountId: (data as any).entityAccountId || (data as any).entityId || (data as any).id || userId,
+          targetId: (data as any).targetId || (data as any).targetID || undefined,
+          type: (data as any).type || (data as any).Type || undefined,
+          email: (data as any).email || (data as any)?.contact?.email || '',
+          userName: (data as any).userName || (data as any).name || '',
+          role: ((data as any).role || 'USER') as Role,
+          avatar: (data as any).avatar || '',
+          background: (data as any).background || '',
           coverImage: '',
-          phone: data.contact?.phone || '',
-          address: data.contact?.address || '',
+          phone: (data as any).phone || (data as any)?.contact?.phone || (data as any)?.phoneNumber || '',
+          address: (data as any).address || (data as any)?.contact?.address || '',
+          provinceId: (data as any).provinceId || (data as any)?.addressData?.provinceId || undefined,
+          districtId: (data as any).districtId || (data as any)?.addressData?.districtId || undefined,
+          wardId: (data as any).wardId || (data as any)?.addressData?.wardId || undefined,
+          addressDetail: (data as any).addressDetail || (data as any)?.addressData?.detail || undefined,
+          addressObject: (data as any).addressObject || (data as any).addressData || undefined,
           addressData: null,
-          bio: data.bio || '',
-          gender: null,
+          bio: (data as any).bio || '',
+          gender: (data as any).gender ?? null,
+          pricePerHours: (data as any).pricePerHours ?? (data as any).PricePerHours ?? (data as any)?.BusinessAccount?.pricePerHours ?? (data as any)?.businessAccount?.pricePerHours ?? null,
+          pricePerSession: (data as any).pricePerSession ?? (data as any).PricePerSession ?? (data as any)?.BusinessAccount?.pricePerSession ?? (data as any)?.businessAccount?.pricePerSession ?? null,
           status: 'active',
           createdAt: '',
         };

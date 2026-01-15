@@ -752,6 +752,7 @@ const Index: React.FC<any> = ({}) => {
                 barId={barDetail?.entityAccountId || ""}
                 tableId={selectedTables[0]?.tableId || ""}
                 preselectedCombo={selectedCombo}
+                bookingDate={selectedDate}
             />
         </View>
     );

@@ -201,19 +201,33 @@ export const BarProfileHeader: React.FC<BarProfileHeaderProps> = ({
         />
       </View>
 
-      {/* Name & Info */}
+      {/* Name & compact contact info (bar profile không dùng bio) */}
       <View style={styles.nameSection}>
         <Text style={styles.name}>{barDetail?.barName || barDetail?.name || 'Quán bar'}</Text>
+
+        {(resolvedAddress || barDetail?.phoneNumber) && (
+          <View style={styles.contactRow}>
         {resolvedAddress && (
-          <View style={styles.addressRow}>
+              <View style={styles.contactItem}>
             <Ionicons name="location-outline" size={14} color="#6b7280" />
-            <Text style={styles.address}>{resolvedAddress}</Text>
+                <Text style={styles.contactText} numberOfLines={1}>
+                  {resolvedAddress}
+                </Text>
           </View>
         )}
+
+            {resolvedAddress && barDetail?.phoneNumber && (
+              <View style={styles.contactSeparator} />
+            )}
+
         {barDetail?.phoneNumber && (
-          <View style={styles.addressRow}>
+              <View style={styles.contactItem}>
             <Ionicons name="call-outline" size={14} color="#6b7280" />
-            <Text style={styles.address}>{barDetail.phoneNumber}</Text>
+                <Text style={styles.contactText} numberOfLines={1}>
+                  {barDetail.phoneNumber}
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -246,6 +260,8 @@ export const BarProfileHeader: React.FC<BarProfileHeaderProps> = ({
 
       {/* Action Buttons */}
       <View style={styles.actionButtonsContainer}>
+        {/* Hàng trên: Theo dõi + Nhắn tin */}
+        <View style={styles.actionButtonsRow}>
         {followingId && onFollowChange && (
           <FollowButton
             followingId={followingId}
@@ -267,10 +283,12 @@ export const BarProfileHeader: React.FC<BarProfileHeaderProps> = ({
             </Text>
           </TouchableOpacity>
         )}
+        </View>
 
+        {/* Hàng dưới: Đặt bàn full width */}
         {onBookTablePress && (
           <TouchableOpacity
-            style={[styles.actionButton, styles.actionButtonBookTable]}
+            style={[styles.actionButton, styles.actionButtonBookTable, styles.bookTableFullWidth]}
             onPress={onBookTablePress}
             activeOpacity={0.8}
           >
@@ -407,6 +425,28 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 8,
   },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 1,
+  },
+  contactText: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  contactSeparator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#d1d5db',
+  },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -440,9 +480,14 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   actionButtonsContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     paddingHorizontal: 20,
     paddingVertical: 12,
+    gap: 12,
+    alignItems: 'stretch',
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
   },
@@ -472,6 +517,9 @@ const styles = StyleSheet.create({
   },
   actionButtonBookTable: {
     backgroundColor: '#10b981',
+  },
+  bookTableFullWidth: {
+    alignSelf: 'stretch',
   },
   actionButtonText: {
     fontSize: 14,

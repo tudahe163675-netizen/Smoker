@@ -67,7 +67,13 @@ export const StoryList: React.FC<StoryListProps> = ({
   const myStoriesGrouped = groupStoriesByUser(myStories);
   const otherStoriesGrouped = groupStoriesByUser(otherStories);
 
-  // Danh sách story đại diện của người khác, sắp xếp theo thời gian story mới nhất
+  // Check xem stories của bản thân còn story chưa xem hay không
+  const myHasUnviewedStories = myStories.some(s => !s.viewed);
+
+  // Danh sách story đại diện của người khác, sắp xếp theo:
+  // 1. Nhóm còn story chưa xem
+  // 2. Nhóm đã xem hết
+  // 3. Trong cùng nhóm, sort theo thời gian story mới nhất (mới hơn đứng trước)
   const otherStoriesRepresentatives = Array.from(otherStoriesGrouped.entries())
     .map(([_, userStories]) => ({
       representative: getRepresentativeStory(userStories),
@@ -75,7 +81,12 @@ export const StoryList: React.FC<StoryListProps> = ({
       latestTime: new Date(userStories[0].createdAt).getTime(),
       hasUnviewed: userStories.some(s => !s.viewed)
     }))
-    .sort((a, b) => b.latestTime - a.latestTime);
+    .sort((a, b) => {
+      if (a.hasUnviewed !== b.hasUnviewed) {
+        return a.hasUnviewed ? -1 : 1;
+      }
+      return b.latestTime - a.latestTime;
+    });
 
   // Story đại diện của bản thân
   const myRepresentativeStory = myStories.length > 0 ? getRepresentativeStory(myStories) : null;
@@ -131,10 +142,12 @@ export const StoryList: React.FC<StoryListProps> = ({
                         source={{ uri: currentUserAvatar || 'https://i.pravatar.cc/100?img=10' }}
                         style={styles.myStoryAvatar}
                       />
-                      <LinearGradient
-                        colors={['#f59e0b', '#ef4444']}
-                        style={styles.myStoryAvatarBorder}
-                      />
+                      {myHasUnviewedStories && (
+                        <LinearGradient
+                          colors={['#f59e0b', '#ef4444']}
+                          style={styles.myStoryAvatarBorder}
+                        />
+                      )}
                     </View>
                   </View>
                   <LinearGradient

@@ -4,11 +4,19 @@ import { SidebarMenu } from '@/components/SidebarMenu';
 import { fieldLabels } from '@/constants/profileData';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useBar } from '@/hooks/useBar';
 import { FeedApiService } from "@/services/feedApi";
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import ProfileEditModal from '@/components/profile/ProfileEditModal';
+import { BarProfileHeader } from '@/components/BarProfileHeader';
+import BarInfoTab from '@/app/barProfile/tabs/BarInfoTab';
+import BarPostsTab from '@/app/barProfile/tabs/BarPostsTab';
+import BarVideosTab from '@/app/barProfile/tabs/BarVideosTab';
+import BarReviewsTab from '@/app/barProfile/tabs/BarReviewsTab';
+import BarTablesTab from '@/app/barProfile/tabs/BarTablesTab';
 import {
     ActivityIndicator,
     Alert,
@@ -57,6 +65,7 @@ const getAllPhotos = (posts: any[]) => {
 };
 
 type TabType = 'info' | 'posts' | 'photos';
+type BarTabType = 'info' | 'posts' | 'videos' | 'reviews' | 'tables';
 
 interface Account {
     id: string;
@@ -91,6 +100,8 @@ export default function ProfileScreen() {
     const [activeTab, setActiveTab] = useState<TabType>('info');
     const [menuVisible, setMenuVisible] = useState(false);
     const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+    const [profileEditVisible, setProfileEditVisible] = useState(false);
+    const [barActiveTab, setBarActiveTab] = useState<BarTabType>('info');
 
     const scrollY = useRef(new Animated.Value(0)).current;
     const menuAnimation = useRef(new Animated.Value(-320)).current;
@@ -99,6 +110,15 @@ export default function ProfileScreen() {
     const allPhotos = getAllPhotos(posts || []);
     const accountId = authState.EntityAccountId;
     const feedApi = new FeedApiService(authState.token!)
+
+    const {
+        barDetail,
+        tables,
+        bookedTables,
+        fetchBarDetail,
+        fetchTables,
+        fetchBookedTables,
+    } = useBar();
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -199,6 +219,42 @@ export default function ProfileScreen() {
             Alert.alert('Thành công', 'Đã cập nhật thông tin');
         }
     };
+
+    const getProfileType = (): 'Account' | 'BarPage' | 'BusinessAccount' => {
+        const roleUpper = (profile?.role || '').toString().toUpperCase();
+        const typeUpper = (profile as any)?.type ? String((profile as any).type).toUpperCase() : '';
+
+        if (typeUpper.includes('BAR') || roleUpper.includes('BAR')) return 'BarPage';
+        if (roleUpper === 'DJ' || roleUpper === 'DANCER' || typeUpper === 'DJ' || typeUpper === 'DANCER') return 'BusinessAccount';
+        return 'Account';
+    };
+
+    const isBarProfile = getProfileType() === 'BarPage';
+
+    // barPageId: dùng để fetch combos/events (BarInfoTab) và bar detail/tables
+    const barPageId = isBarProfile
+        ? (profile as any)?.barPageId ||
+          (profile as any)?.BarPageId ||
+          (profile as any)?.barPageID ||
+          (profile as any)?.targetId ||
+          (profile as any)?.targetID ||
+          (profile as any)?.id ||
+          profile?.targetId ||
+          profile?.id ||
+          profile?.entityAccountId ||
+          accountId
+        : null;
+
+    useEffect(() => {
+        if (!isBarProfile) return;
+        if (!barPageId) return;
+        if (!authState.token) return;
+
+        const idStr = String(barPageId);
+        // Với own profile, dữ liệu bar cơ bản đã có trong `profile`
+        // Chỉ cần fetch tables (BarTablesTab) – tránh gọi /bar/:id gây 404 và spam lỗi
+        fetchTables(idStr);
+    }, [isBarProfile, barPageId, authState.token, fetchTables]);
 
     const ProfileItem = ({
         label,
@@ -324,7 +380,60 @@ export default function ProfileScreen() {
                 updateAuth={updateAuthState}
             />
 
-            {activeTab === 'info' ? (
+            {/* BAR profile branch: hiển thị tab info (Combo + Event) giống màn bên ngoài */}
+            {isBarProfile && profile ? (
+                <Animated.ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: 40 }}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={['#2563eb']}
+                            tintColor="#2563eb"
+                        />
+                    }
+                    onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+                        useNativeDriver: true,
+                    })}
+                    scrollEventThrottle={16}
+                >
+                    <BarProfileHeader
+                        barDetail={barDetail || profile}
+                        activeTab={barActiveTab}
+                        postsCount={posts.length}
+                        followingCount={following.length}
+                        followerCount={followers.length}
+                        onTabChange={setBarActiveTab}
+                        onFollowersPress={handleFollowersPress}
+                        onFollowingPress={handleFollowingPress}
+                    />
+
+                    <View style={{ flex: 0 }}>
+                        {barActiveTab === 'info' && (
+                            <BarInfoTab barDetail={barDetail || profile} barPageId={String(barPageId || '')} />
+                        )}
+                        {barActiveTab === 'posts' && <BarPostsTab barPageId={String(barPageId || '')} />}
+                        {barActiveTab === 'videos' && <BarVideosTab barPageId={String(barPageId || '')} />}
+                        {barActiveTab === 'reviews' && <BarReviewsTab barPageId={String(barPageId || '')} />}
+                        {barActiveTab === 'tables' && (
+                            <BarTablesTab
+                                barPageId={String(barPageId || '')}
+                                tables={tables}
+                                bookedTables={bookedTables}
+                                onRefreshTables={() => fetchTables(String(barPageId || ''))}
+                            />
+                        )}
+                    </View>
+
+                    {error && (
+                        <View style={styles.errorContainer}>
+                            <Ionicons name="warning-outline" size={20} color="#ef4444" />
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    )}
+                </Animated.ScrollView>
+            ) : activeTab === 'info' ? (
                 <Animated.ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 40 }}
@@ -352,6 +461,7 @@ export default function ProfileScreen() {
                         onTabChange={setActiveTab}
                         onFollowersPress={handleFollowersPress}
                         onFollowingPress={handleFollowingPress}
+                        onEditPress={() => setProfileEditVisible(true)}
                     />
                     <InfoContent />
 
@@ -389,6 +499,7 @@ export default function ProfileScreen() {
                             onTabChange={setActiveTab}
                             onFollowersPress={handleFollowersPress}
                             onFollowingPress={handleFollowingPress}
+                            onEditPress={() => setProfileEditVisible(true)}
                         />
                     }
                     contentContainerStyle={{ paddingBottom: 40 }}
@@ -431,6 +542,7 @@ export default function ProfileScreen() {
                             onTabChange={setActiveTab}
                             onFollowersPress={handleFollowersPress}
                             onFollowingPress={handleFollowingPress}
+                            onEditPress={() => setProfileEditVisible(true)}
                         />
                     }
                     contentContainerStyle={{ paddingBottom: 40 }}
@@ -495,6 +607,21 @@ export default function ProfileScreen() {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* Full Profile Edit Modal */}
+            {!!profile && (
+                <ProfileEditModal
+                    visible={profileEditVisible}
+                    onClose={() => setProfileEditVisible(false)}
+                    onSuccess={() => {
+                        fetchProfile();
+                        setProfileEditVisible(false);
+                    }}
+                    profile={profile}
+                    profileType={getProfileType()}
+                    token={authState.token!}
+                />
+            )}
 
 
             <Modal

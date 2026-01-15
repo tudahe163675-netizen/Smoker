@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useEffect} from "react";
+import React, {useState, useCallback, useEffect, useMemo} from "react";
 import {
     Modal,
     StyleSheet,
@@ -9,15 +9,19 @@ import {
     ScrollView, Platform, KeyboardAvoidingView, Alert,
 } from "react-native";
 import Dropdown from "@/components/Dropdown";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import {Ionicons} from "@expo/vector-icons";
 import ConfirmBooking from "@/app/user/modals/confirmBooking";
-import {useRouter} from "expo-router";
+import HorizontalDatePicker from "@/components/HorizontalDatePicker";
+import PaymentStickyBar from "@/components/PaymentStickyBar";
+import PaymentSummary from "@/components/PaymentSummary";
+import {useRouter, useLocalSearchParams} from "expo-router";
 import {ProfileApiService} from "@/services/profileApi";
+import {FeedApiService} from "@/services/feedApi";
 import {useAuth} from "@/hooks/useAuth";
 import {User} from "@/constants/feedData";
 import {BarApiService} from "@/services/barApi";
 import {isValidPhone} from "@/utils/extension";
+import {useSafeAreaInsets} from "react-native-safe-area-context";
 
 interface IBookingModalProps {
     visible: boolean,
@@ -28,9 +32,11 @@ interface IBookingModalProps {
 export default function BookingModal({visible, onClose, user}: IBookingModalProps) {
 
     const router = useRouter();
+    const params = useLocalSearchParams<{ id: string | string[] }>();
+    // Handle id as string or array (expo-router can return array)
+    const id = Array.isArray(params.id) ? params.id[0] : (params.id || '');
     const [data, setData] = useState<any>()
     const [isConfirm, setIsConfirm] = useState<any>()
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [selectedSlots, setSelectedSlots] = useState([]);
     const [errors, setErrors] = useState<any>({});
     // LOCATION
@@ -63,17 +69,46 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
     });
 
     const {authState} = useAuth();
-    const profileApi = new ProfileApiService(authState.token!)
-    const barApi = new BarApiService(authState.token!)
+    const insets = useSafeAreaInsets();
+    const profileApi = new ProfileApiService(authState.token!);
+    const feedApi = new FeedApiService(authState.token!);
+    const barApi = new BarApiService(authState.token!);
+    const [pricePerSlot, setPricePerSlot] = useState<number>(0);
+    const [pricePerSession, setPricePerSession] = useState<number>(0);
+    
+    // Height của PaymentStickyBar (approximate)
+    const STICKY_BAR_HEIGHT = 80;
+
+    const parsePriceNumber = (value: any) => {
+        if (value === null || value === undefined) return 0;
+        // Loại bỏ ký tự không phải số (cho trường hợp API trả về dạng "135.000 đ")
+        const cleaned = String(value).replace(/[^0-9.-]/g, "");
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
 
     const loadData = async () => {
-        if (!user?.entityAccountId) {
-            console.warn("user.entityAccountId is undefined");
+        // Use user.entityAccountId or fallback to id from route params (giống index.tsx)
+        const entityAccountId = user?.entityAccountId || id;
+        
+        if (!entityAccountId) {
+            console.warn("user.entityAccountId and route id are both undefined", {
+                userEntityAccountId: user?.entityAccountId,
+                routeId: id,
+                user: user
+            });
             return;
         }
         
+        console.log('[BookingModal] loadData called with:', {
+            entityAccountId,
+            userEntityAccountId: user?.entityAccountId,
+            routeId: id
+        });
+        
         try {
-        const response = await profileApi.getListBooked(user.entityAccountId);
+            // Fetch booked slots (giống trước đây)
+            const response = await profileApi.getListBooked(entityAccountId);
             const bookings = response?.data || [];
 
         const today = new Date();
@@ -92,6 +127,7 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
 
             return Array.isArray(item.detailSchedule?.Slots);
         });
+
         const slotsWithBookings = slots.map(slot => {
             const bookingsInSlot = validBookings
                 .filter(item =>
@@ -109,28 +145,247 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
         });
 
         setSlots(slotsWithBookings);
+
+            // Fetch performer profile để lấy giá theo slot và giá theo buổi (giống web)
+            // Sử dụng feedApi.getViewInformation giống useUserProfile hook để lấy dữ liệu đầy đủ
+            const profileRes = await feedApi.getViewInformation(entityAccountId);
+            // Response structure từ feedApi.getViewInformation: response.data (không cần check response.data.data)
+            const rawProfile: any = profileRes?.data || {};
+            
+            // Lấy giá theo slot (PricePerHours) - check cả top level và nested BusinessAccount
+            const slotPrice = parsePriceNumber(
+                rawProfile.pricePerHours ??
+                rawProfile.PricePerHours ??
+                rawProfile.pricePerHour ??
+                rawProfile.PricePerHour ??
+                rawProfile?.businessAccount?.pricePerHours ??
+                rawProfile?.businessAccount?.PricePerHours ??
+                rawProfile?.BusinessAccount?.pricePerHours ??
+                rawProfile?.BusinessAccount?.PricePerHours ??
+                0
+            );
+            
+            // Lấy giá theo buổi (PricePerSession) - check cả top level và nested BusinessAccount
+            const sessionPrice = parsePriceNumber(
+                rawProfile.pricePerSession ??
+                rawProfile.PricePerSession ??
+                rawProfile?.businessAccount?.pricePerSession ??
+                rawProfile?.businessAccount?.PricePerSession ??
+                rawProfile?.BusinessAccount?.pricePerSession ??
+                rawProfile?.BusinessAccount?.PricePerSession ??
+                0
+            );
+            
+            setPricePerSlot(slotPrice);
+            setPricePerSession(sessionPrice);
+            
+            // Log xác nhận giá đã được load thành công
+            if (slotPrice > 0 || sessionPrice > 0) {
+                console.log('[BookingModal] ✅ Prices loaded successfully:', {
+                    slotPrice,
+                    sessionPrice,
+                    hasSlotPrice: slotPrice > 0,
+                    hasSessionPrice: sessionPrice > 0
+                });
+            } else {
+                console.warn('[BookingModal] ⚠️ Prices are still 0 after loading. Check API response structure.');
+            }
+            
+            // Log toàn bộ rawProfile để debug - sử dụng JSON.stringify để xem tất cả keys
+            console.log('[BookingModal] Profile prices loaded - Full rawProfile:', JSON.stringify(rawProfile, null, 2));
+            console.log('[BookingModal] Profile prices loaded - Summary:', {
+                slotPrice,
+                sessionPrice,
+                rawProfileKeys: Object.keys(rawProfile || {}),
+                hasBusinessAccount: !!rawProfile?.BusinessAccount,
+                hasBusinessAccountLowercase: !!rawProfile?.businessAccount,
+                businessAccountKeys: rawProfile?.BusinessAccount ? Object.keys(rawProfile.BusinessAccount) : [],
+                businessAccountLowercaseKeys: rawProfile?.businessAccount ? Object.keys(rawProfile.businessAccount) : [],
+                rawProfile: {
+                    pricePerHours: rawProfile.pricePerHours,
+                    PricePerHours: rawProfile.PricePerHours,
+                    pricePerHour: rawProfile.pricePerHour,
+                    PricePerHour: rawProfile.PricePerHour,
+                    pricePerSession: rawProfile.pricePerSession,
+                    PricePerSession: rawProfile.PricePerSession,
+                    BusinessAccount: rawProfile?.BusinessAccount,
+                    businessAccount: rawProfile?.businessAccount
+                },
+                fromBusinessAccount: {
+                    PricePerHours: rawProfile?.BusinessAccount?.PricePerHours,
+                    pricePerHours: rawProfile?.BusinessAccount?.pricePerHours,
+                    PricePerSession: rawProfile?.BusinessAccount?.PricePerSession,
+                    pricePerSession: rawProfile?.BusinessAccount?.pricePerSession
+                },
+                fromBusinessAccountLowercase: {
+                    PricePerHours: rawProfile?.businessAccount?.PricePerHours,
+                    pricePerHours: rawProfile?.businessAccount?.pricePerHours,
+                    PricePerSession: rawProfile?.businessAccount?.PricePerSession,
+                    pricePerSession: rawProfile?.businessAccount?.pricePerSession
+                }
+            });
         } catch (error) {
-            console.error("Error loading booking data:", error);
+            console.error("Error loading booking data or profile:", error);
         }
     }
     useEffect(() => {
-        loadData()
-    }, [visible])
+        if (visible) {
+            loadData();
+        }
+    }, [visible, user?.entityAccountId, id])
 
 
-    // PAYMENT
-    const SLOT_PRICE = 500000;
+    // PAYMENT - tính giá theo slot giống web
     const DEPOSIT = 50000;
-    const totalPrice = selectedSlots.length * SLOT_PRICE;
-    const totalDeposit = selectedSlots.length * DEPOSIT;
-    const remaining = totalPrice - totalDeposit;
 
-    const updateForm = (k, v) => {
+    /**
+     * Helper function: Tính số slot liền nhau dài nhất từ danh sách slot đã chọn
+     */
+    const getMaxConsecutiveSlots = (selectedSlots: number[]): number => {
+        if (selectedSlots.length === 0) return 0;
+        if (selectedSlots.length === 1) return 1;
+        
+        const sortedSlots = [...selectedSlots].sort((a, b) => a - b);
+        let maxConsecutive = 1;
+        let currentConsecutive = 1;
+        
+        for (let i = 1; i < sortedSlots.length; i++) {
+            if (sortedSlots[i] === sortedSlots[i - 1] + 1) {
+                currentConsecutive++;
+                maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
+            } else {
+                currentConsecutive = 1;
+            }
+        }
+        
+        return maxConsecutive;
+    };
+
+    /**
+     * Tính giá booking dựa trên số slot và điều kiện
+     */
+    const calculateBookingPrice = ({
+        totalSlots,
+        consecutiveSlots,
+        pricePerHour,
+        pricePerSession
+    }: {
+        totalSlots: number;
+        consecutiveSlots: number;
+        pricePerHour: number;
+        pricePerSession: number;
+    }) => {
+        // Điều kiện áp dụng giá ưu đãi (pricePerSession):
+        // - Có ít nhất 4 slot liền nhau HOẶC tổng số slot >= 6
+        const shouldUseSessionPrice = consecutiveSlots >= 4 || totalSlots >= 6;
+        
+        // Nếu đủ điều kiện và có pricePerSession > 0 → dùng giá ưu đãi
+        if (shouldUseSessionPrice && pricePerSession > 0) {
+            return {
+                unitPrice: pricePerSession,
+                totalPrice: pricePerSession * totalSlots,
+                priceType: 'pricePerSession' as const
+            };
+        }
+        
+        // Ngược lại → dùng giá theo slot thông thường
+        return {
+            unitPrice: pricePerHour || 0,
+            totalPrice: (pricePerHour || 0) * totalSlots,
+            priceType: 'pricePerHour' as const
+        };
+    };
+
+    // Tính số slot liền nhau dài nhất
+    const maxConsecutiveSlots = useMemo(() => {
+        return getMaxConsecutiveSlots(selectedSlots);
+    }, [selectedSlots]);
+
+    // Tính giá booking dựa trên logic đã định nghĩa
+    const priceCalculation = useMemo(() => {
+        if (selectedSlots.length === 0) {
+            return {
+                unitPrice: 0,
+                totalPrice: 0,
+                priceType: 'pricePerHour' as const,
+                reason: null as string | null
+            };
+        }
+
+        const totalSlots = selectedSlots.length;
+        
+        // Nếu không có giá hợp lệ
+        if ((pricePerSlot || 0) <= 0 && (pricePerSession || 0) <= 0) {
+            return {
+                unitPrice: 0,
+                totalPrice: 0,
+                priceType: 'pricePerHour' as const,
+                reason: null as string | null
+            };
+        }
+        
+        // Tính giá bằng hàm calculateBookingPrice
+        const priceResult = calculateBookingPrice({
+            totalSlots,
+            consecutiveSlots: maxConsecutiveSlots,
+            pricePerHour: pricePerSlot || 0,
+            pricePerSession: pricePerSession || 0
+        });
+        
+        const result = {
+            unitPrice: priceResult.unitPrice,
+            totalPrice: priceResult.totalPrice,
+            priceType: priceResult.priceType,
+            reason: maxConsecutiveSlots >= 4 ? 'consecutive' : totalSlots >= 6 ? 'total' : null
+        };
+        
+        console.log('[BookingModal] Price calculation:', {
+            pricePerSlot,
+            pricePerSession,
+            selectedSlots,
+            totalSlots,
+            maxConsecutiveSlots,
+            result
+        });
+        
+        console.log('[BookingModal] Payment Summary should show:', {
+            hasSelectedSlots: selectedSlots.length > 0,
+            hasPriceCalculation: !!result,
+            unitPrice: result.unitPrice,
+            totalPrice: result.totalPrice,
+            shouldShow: selectedSlots.length > 0 && !!result && result.unitPrice > 0,
+            condition: {
+                selectedSlotsLength: selectedSlots.length,
+                unitPrice: result.unitPrice,
+                totalPrice: result.totalPrice,
+                priceType: result.priceType
+            }
+        });
+        
+        return result;
+    }, [pricePerSlot, pricePerSession, selectedSlots, maxConsecutiveSlots]);
+
+    // Tính toán paddingBottom động cho ScrollView để tránh bị che bởi PaymentStickyBar
+    const scrollViewPaddingBottom = useMemo(() => {
+        const shouldShowStickyBar = selectedSlots.length > 0 && priceCalculation && priceCalculation.unitPrice > 0;
+        if (shouldShowStickyBar) {
+            // Sticky bar height + safe area bottom + extra spacing
+            return STICKY_BAR_HEIGHT + Math.max(insets.bottom, 8) + 20;
+        }
+        // Default padding khi không có sticky bar
+        return 20;
+    }, [selectedSlots.length, priceCalculation, insets.bottom]);
+
+    // Use priceCalculation directly in UI (like web)
+
+    const updateForm = (k: any, v: any) => {
         if (k === "date") {
-            const selectedDate = new Date(v).toISOString().split("T")[0];
-            const slotChecked = slots.map(s => {
-                const isBooked = s.bookings?.some(b =>
-                    new Date(b.bookingDate).toISOString().startsWith(selectedDate)
+            // v is a Date object from HorizontalDatePicker
+            const selectedDate = v instanceof Date ? v : new Date(v);
+            const dateString = selectedDate.toISOString().split("T")[0];
+            const slotChecked = slots.map((s: any) => {
+                const isBooked = s.bookings?.some((b: any) =>
+                    new Date(b.bookingDate).toISOString().startsWith(dateString)
                 );
 
                 return {
@@ -138,8 +393,12 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
                     isBooked,
                 };
             });
-            setSlots(slotChecked)
-            v = v.toLocaleDateString("vi-VN");
+            setSlots(slotChecked);
+            // Format for display: dd/MM/yyyy
+            const day = String(selectedDate.getDate()).padStart(2, "0");
+            const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+            const year = selectedDate.getFullYear();
+            v = `${day}/${month}/${year}`;
         }
         setForm((prev) => ({...prev, [k]: v}))
     };
@@ -155,6 +414,25 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
             ? selectedSlots.filter((x) => x !== id)
             : [...selectedSlots, id];
         setSelectedSlots(updated);
+    };
+
+    // Handle date change from HorizontalDatePicker
+    const handleDateChange = (date: Date) => {
+        // Không cho đổi ngày nếu đã chọn slot
+        if (selectedSlots.length > 0) {
+            setErrors((prev) => ({
+                ...prev,
+                date: "Vui lòng bỏ chọn tất cả slot trước khi đổi ngày"
+            }));
+            return;
+        }
+        // Reset slots khi đổi ngày
+        setSelectedSlots([]);
+        // Update form
+        updateForm("date", date);
+        clearError("date");
+        // Reload booked slots for the new date
+        loadData();
     };
 
     const fetchLocation = useCallback(async (url, setter) => {
@@ -275,11 +553,33 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
 
     const onSubmit = () => {
         if (!validate()) return;
+        
+        // Tính giá gốc và giảm giá
+        const originalPrice = (pricePerSlot || 0) * selectedSlots.length;
+        const discount = originalPrice - priceCalculation.totalPrice;
+        
+        // Tính thời gian slot (ví dụ: slot 1-4 = 0h-8h)
+        const firstSlot = Math.min(...selectedSlots);
+        const lastSlot = Math.max(...selectedSlots);
+        const startHour = (firstSlot - 1) * 2;
+        const endHour = lastSlot * 2;
+        const timeRange = `${startHour}h - ${endHour}h`;
+        
+        // Địa điểm
+        const location = form.address 
+            ? `${form.address}${form.ward ? ', ' + form.ward : ''}${form.district ? ', ' + form.district : ''}${form.province ? ', ' + form.province : ''}`
+            : '';
+        
         const dataConfirm = {
             date: form.date,
             slot: selectedSlots.length,
-            totalPrice: formatMoney(totalPrice),
-            deposit: formatMoney(totalDeposit),
+            timeRange: timeRange,
+            location: location,
+            originalPrice: originalPrice,
+            discount: discount > 0 ? discount : 0,
+            totalPrice: priceCalculation.totalPrice,
+            deposit: DEPOSIT,
+            remaining: priceCalculation.totalPrice - DEPOSIT,
         };
         setData(dataConfirm);
         setIsConfirm(true);
@@ -294,7 +594,7 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
         let req = {
             requesterEntityAccountId: authState.EntityAccountId,
             requesterRole: authState.role,
-            performerEntityAccountId: user.entityAccountId,
+            performerEntityAccountId: user?.entityAccountId || id,
             performerRole: user.role,
             date: form.date?.split("/").reverse().join("-"),
             startTime: today,
@@ -302,7 +602,7 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
             location: `${form.address}, ${form.ward}, ${form.district}, ${form.province}`,
             phone: form.phone,
             note: form.note,
-            offeredPrice: totalPrice,
+            offeredPrice: priceCalculation.totalPrice,
             slots: selectedSlots
         }
 
@@ -339,58 +639,75 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
                     style={{flex: 1}}
                     behavior={Platform.OS === "ios" ? "padding" : undefined}
                 >
-                    <ScrollView contentContainerStyle={styles.modalContainer}>
+                    <ScrollView 
+                        contentContainerStyle={[
+                            styles.modalContainer,
+                            { paddingBottom: scrollViewPaddingBottom }
+                        ]}
+                        showsVerticalScrollIndicator={true}
+                    >
                         <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
                             <Ionicons name="close" size={32}/>
                         </TouchableOpacity>
 
-                        <Text style={styles.title}>Đặt lịch</Text>
+                        <Text style={styles.title}>Đặt lịch {user?.role === "DJ" ? "DJ" : "Dancer"}</Text>
 
                         {/* DATE */}
                         <View style={{marginBottom: 7}}>
                             <Text style={styles.label}>Chọn ngày <Text style={{color: 'red'}}>*</Text></Text>
 
-                            <TouchableOpacity
-                                style={[
-                                    styles.dateButton,
-                                    errors.date && styles.errorBorder
-                                ]}
-                                onPress={() => setShowDatePicker(true)}
-                            >
-                                <Text style={styles.dateText}>
-                                    {form.date ? form.date : "dd/MM/yyyy"}
-                                </Text>
-                                <Ionicons name="calendar-outline" size={20}/>
-                            </TouchableOpacity>
-
-                            {errors.date && <Text style={styles.error}>{errors.date}</Text>}
-
-                            {showDatePicker && (
-                                <DateTimePicker
-                                    value={tomorrow}
-                                    mode="date"
-                                    minimumDate={tomorrow}
-                                    onChange={(event, selectedDate) => {
-                                        setShowDatePicker(false);
-                                        if (selectedDate) {
-                                            const date = new Date(selectedDate);
-                                            updateForm("date", date);
-                                            clearError("date");
+                            <HorizontalDatePicker
+                                selectedDate={form.date ? (() => {
+                                    // Parse dd/MM/yyyy to Date object
+                                    if (typeof form.date === 'string') {
+                                        const parts = form.date.split("/");
+                                        if (parts.length === 3) {
+                                            return new Date(Number.parseInt(parts[2], 10), Number.parseInt(parts[1], 10) - 1, Number.parseInt(parts[0], 10));
                                         }
-                                    }}
+                                    }
+                                    return null;
+                                })() : null}
+                                onDateChange={handleDateChange}
+                                minDate={tomorrow}
+                                error={errors.date}
+                                disabled={selectedSlots.length > 0}
                                 />
-                            )}
                         </View>
 
                         {/* SLOT */}
                         <View>
                             {form.date && (
                                 <View style={{marginBottom: 7}}>
+                                    <View style={{flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 8}}>
                                     <Text style={styles.label}>Chọn slot <Text style={{color: 'red'}}>*</Text></Text>
+                                        {selectedSlots.length > 0 && (
+                                            <Text style={{fontSize: 12, color: '#6b7280', marginLeft: 8}}>
+                                                (Đã chọn: {selectedSlots.length} slot)
+                                            </Text>
+                                        )}
+                                    </View>
+
+                                    {/* Promotional Message */}
+                                    <View style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        backgroundColor: '#eff6ff',
+                                        borderRadius: 8,
+                                        padding: 12,
+                                        marginBottom: 12,
+                                        borderWidth: 1,
+                                        borderColor: '#bfdbfe'
+                                    }}>
+                                        <Ionicons name="bulb-outline" size={16} color="#2563eb" style={{marginRight: 8}} />
+                                        <Text style={{fontSize: 12, fontWeight: '500', color: '#2563eb', flex: 1}}>
+                                            Đặt 4 slot liền nhau trở lên hoặc 6 slot trở lên để nhận giá theo buổi (ưu đãi)
+                                        </Text>
+                                    </View>
 
                                     <View style={[styles.slotContainer, errors.slot && styles.errorBorder]}>
-                                        {slots.map((item) => {
+                                        {slots.map((item: any) => {
                                             const isSelected = selectedSlots.includes(item.id);
+                                            const isBooked = item.isBooked;
 
                                             return (
                                                 <TouchableOpacity
@@ -398,9 +715,9 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
                                                     style={[
                                                         styles.slot,
                                                         isSelected && styles.slotSelected,
-                                                        item.isBooked && styles.disableSelect
+                                                        isBooked && styles.disableSelect
                                                     ]}
-                                                    disabled={item.isBooked}
+                                                    disabled={isBooked}
                                                     onPress={() => toggleSlot(item.id)}
                                                 >
                                                     <Text
@@ -411,9 +728,35 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
                                                     >
                                                         SL{item.id}
                                                     </Text>
-                                                    <Text style={{color: isSelected ? "#fff" : "#334155"}}>
+                                                    <Text style={{
+                                                        fontSize: 12,
+                                                        color: isSelected ? "#3b82f6" : "#6b7280"
+                                                    }}>
                                                         {item.text}
                                                     </Text>
+                                                    {isSelected && (
+                                                        <Ionicons 
+                                                            name="checkmark-circle" 
+                                                            size={16} 
+                                                            color="#3b82f6" 
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 4,
+                                                                right: 4
+                                                            }}
+                                                        />
+                                                    )}
+                                                    {isBooked && (
+                                                        <Text style={{
+                                                            position: "absolute",
+                                                            top: 4,
+                                                            right: 4,
+                                                            fontSize: 12,
+                                                            color: "#ef4444"
+                                                        }}>
+                                                            ✕
+                                                        </Text>
+                                                    )}
                                                 </TouchableOpacity>
                                             );
                                         })}
@@ -422,60 +765,6 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
                                     {errors.slot && <Text style={styles.error}>{errors.slot}</Text>}
                                 </View>
                             )}
-                        </View>
-
-                        {/* PAYMENT */}
-                        <View>
-                            {selectedSlots.length > 0 && (
-                                <View style={styles.paymentBox}>
-                                    <View style={{flexDirection: "row", alignItems: "center", marginBottom: 6}}>
-                                        <Ionicons name="cash-outline" size={18} color="#0f172a"/>
-                                        <Text style={styles.paymentTitle}> Thông tin thanh toán</Text>
-                                    </View>
-
-                                    <View style={styles.paymentRow}>
-                                        <Text style={styles.paymentLabel}>Số slot đã chọn:</Text>
-                                        <Text style={styles.paymentValue}>{selectedSlots.length} slot</Text>
-                                    </View>
-
-                                    <View style={styles.paymentRow}>
-                                        <Text style={styles.paymentLabel}>Giá slot lẻ (500.000 đ/slot):</Text>
-                                        <Text style={styles.paymentValue}>{formatMoney(totalPrice)}</Text>
-                                    </View>
-
-                                    <View style={styles.paymentRow}>
-                                        <Text style={styles.paymentLabel}>Tiền cọc:</Text>
-                                        <Text style={styles.paymentValue}>{formatMoney(totalDeposit)}</Text>
-                                    </View>
-
-                                    <View style={styles.paymentRow}>
-                                        <Text style={styles.paymentLabel}>Còn lại:</Text>
-                                        <Text style={[styles.paymentValue, {fontWeight: "700"}]}>
-                                            {formatMoney(remaining)}
-                                        </Text>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
-
-                        <View style={{marginBottom: 7}}>
-                            <Text style={{marginBottom: 4}}>Số điện thoại <Text style={{color: 'red'}}>*</Text></Text>
-                            <View style={[
-                                styles.inputContainer,
-                                errors.phone && styles.errorBorder
-                            ]}>
-                                <TextInput
-                                    placeholder="Số điện thoại"
-                                    placeholderTextColor="#9ca3af"
-                                    style={styles.inputPhone}
-                                    value={form.phone}
-                                    onChangeText={(t) => {
-                                        updateForm("phone", t);
-                                        clearError("phone");
-                                    }}
-                                />
-                            </View>
-                            {errors.phone && <Text style={styles.error}>{errors.phone}</Text>}
                         </View>
 
                         {/* ADDRESS */}
@@ -571,12 +860,33 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
                             ) : null}
                         </View>
 
+                        {/* PHONE */}
+                        <View style={{marginBottom: 7}}>
+                            <Text style={{marginBottom: 4}}>Số điện thoại <Text style={{color: 'red'}}>*</Text></Text>
+                            <View style={[
+                                styles.inputContainer,
+                                errors.phone && styles.errorBorder
+                            ]}>
+                                <TextInput
+                                    placeholder="Nhập số điện thoại (ví dụ: 0912345678 hoặc +84912345678)"
+                                    placeholderTextColor="#9ca3af"
+                                    style={styles.inputPhone}
+                                    value={form.phone}
+                                    onChangeText={(t) => {
+                                        updateForm("phone", t);
+                                        clearError("phone");
+                                    }}
+                                />
+                            </View>
+                            {errors.phone && <Text style={styles.error}>{errors.phone}</Text>}
+                        </View>
+
                         {/* NOTE */}
                         <View>
-                            <Text style={styles.label}>Ghi chú (Tùy chọn)</Text>
+                            <Text style={styles.label}>Ghi chú (tùy chọn)</Text>
                             <TextInput
                                 style={styles.textArea}
-                                placeholder="Nhập ghi chú"
+                                placeholder="Thêm ghi chú..."
                                 placeholderTextColor="#9ca3af"
                                 multiline
                                 value={form.note}
@@ -584,11 +894,52 @@ export default function BookingModal({visible, onClose, user}: IBookingModalProp
                             />
                         </View>
 
-                        {/* SUBMIT */}
-                        <TouchableOpacity style={styles.submitBtn} onPress={onSubmit}>
-                            <Text style={styles.submitText}>Xác nhận</Text>
-                        </TouchableOpacity>
+                        {/* Payment Summary - Receipt Card Style */}
+                        {(() => {
+                            const shouldShow = selectedSlots.length > 0 && priceCalculation && priceCalculation.unitPrice > 0;
+                            console.log('[BookingModal] PaymentSummary render check:', {
+                                selectedSlotsLength: selectedSlots.length,
+                                hasPriceCalculation: !!priceCalculation,
+                                unitPrice: priceCalculation?.unitPrice,
+                                totalPrice: priceCalculation?.totalPrice,
+                                pricePerSlot,
+                                pricePerSession,
+                                shouldShow
+                            });
+                            return shouldShow ? (
+                                <View style={{marginTop: 16}}>
+                                    <PaymentSummary
+                                        selectedSlots={selectedSlots}
+                                        priceCalculation={priceCalculation}
+                                        maxConsecutiveSlots={maxConsecutiveSlots}
+                                        depositAmount={DEPOSIT}
+                                    />
+                                </View>
+                            ) : null;
+                        })()}
                     </ScrollView>
+
+                    {/* Payment Sticky Bar */}
+                    {(() => {
+                        const shouldShow = selectedSlots.length > 0 && priceCalculation && priceCalculation.unitPrice > 0;
+                        console.log('[BookingModal] PaymentStickyBar render check:', {
+                            selectedSlotsLength: selectedSlots.length,
+                            hasPriceCalculation: !!priceCalculation,
+                            unitPrice: priceCalculation?.unitPrice,
+                            totalPrice: priceCalculation?.totalPrice,
+                            shouldShow
+                        });
+                        return shouldShow ? (
+                            <PaymentStickyBar
+                                totalPrice={priceCalculation.totalPrice || 0}
+                                deposit={DEPOSIT}
+                                remaining={(priceCalculation.totalPrice || 0) > DEPOSIT ? (priceCalculation.totalPrice || 0) - DEPOSIT : 0}
+                                onContinue={onSubmit}
+                                disabled={selectedSlots.length === 0}
+                            />
+                        ) : null;
+                    })()}
+
                     {isConfirm && (
                         <ConfirmBooking
                             data={data}
@@ -699,28 +1050,41 @@ const styles = StyleSheet.create({
     slotContainer: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 10,
-        padding: 6,
-        borderRadius: 10,
-        borderWidth: 1,
-        borderColor: "#767676",
+        gap: 12,
+        padding: 4,
+        borderRadius: 8,
+        borderWidth: 0,
     },
     slot: {
-        width: "30%",
-        padding: 12,
-        backgroundColor: "#eee",
-        borderRadius: 10,
+        width: "22%", // 4 columns with gap
+        minWidth: 70,
+        padding: 16,
+        backgroundColor: "#ffffff",
+        borderRadius: 8,
+        borderWidth: 2,
+        borderColor: "#e5e7eb",
         alignItems: "center",
-        marginBottom: 10,
+        justifyContent: "center",
+        gap: 4,
+        position: "relative",
     },
     slotSelected: {
-        backgroundColor: "#6B4EFF",
+        backgroundColor: "#eff6ff",
+        borderColor: "#3b82f6",
     },
     disableSelect: {
-        backgroundColor: "#b3b2b2",
+        backgroundColor: "#f3f4f6",
+        borderColor: "#d1d5db",
+        opacity: 0.5,
     },
-    slotText: {fontWeight: "700"},
-    slotTextSelected: {color: "#fff"},
+    slotText: {
+        fontSize: 12,
+        fontWeight: "700",
+        color: "#1f2937"
+    },
+    slotTextSelected: {
+        color: "#3b82f6"
+    },
 
     paymentBox: {
         marginVertical: 7,
@@ -747,5 +1111,10 @@ const styles = StyleSheet.create({
     paymentValue: {
         fontSize: 14,
         color: "#0f172a",
+    },
+    paymentNote: {
+        marginTop: 8,
+        fontSize: 12,
+        color: "#6b7280",
     },
 });

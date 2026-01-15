@@ -2,6 +2,9 @@ import { Role } from "@/constants/authData";
 
 export interface UserProfileData {
   id: string;
+  entityAccountId?: string;
+  targetId?: string;
+  type?: string;
   email: string;
   userName: string;
   role: Role;
@@ -10,9 +13,18 @@ export interface UserProfileData {
   coverImage: string;
   phone: string;
   address: string;
+  // Raw address fields (for AddressSelector)
+  provinceId?: string;
+  districtId?: string;
+  wardId?: string;
+  addressDetail?: string;
+  addressObject?: any;
   addressData: AddressData | null;
   bio: string;
   gender: string | null;  // nếu backend không cố định thì để string | null
+  // Performer pricing (DJ/Dancer) - may be present in /profile/{id} response
+  pricePerHours?: number | string | null;
+  pricePerSession?: number | string | null;
   status: string;         // "active", "inactive", ...
   createdAt: string;
 }
@@ -31,6 +43,7 @@ export interface UpdateProfileRequestData {
   phone?: string;
   bio?: string;
   gender?: string;
+  address?: string;  // JSON string format: {"detail":"...","provinceId":"...","districtId":"...","wardId":"..."}
 }
 
 export interface UploadFile {

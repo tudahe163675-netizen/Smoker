@@ -94,6 +94,8 @@ export class ProfileApiService {
     if (updates.phone) formData.append("phone", updates.phone);
     if (updates.bio) formData.append("bio", updates.bio);
     if (updates.gender) formData.append("gender", updates.gender);
+    // Address as JSON string
+    if (updates.address) formData.append("address", updates.address);
 
     return this.makeRequest<UserProfileData>(`/user/profile`, {
       method: "PUT",
